@@ -17,12 +17,6 @@ JSON is flexible and human-readable, but it has well-known limitations at scale:
 JSON-T addresses these problems directly.
 
 ---
-Nice — this is actually a **very strong origin story** for the project, and it *adds credibility* instead of sounding convoluted when written correctly.
-
-Below is a **clean README section** you can drop in **as-is**.
-It explains the idea without over-explaining, and positions JSON-T correctly among CSV / Protobuf / Avro / JSON.
-
----
 
 ## Design Inspiration
 
