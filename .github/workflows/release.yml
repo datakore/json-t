@@ -1,0 +1,91 @@
+name: Auto Release & Publish
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md' # Ignores README changes to prevent unnecessary builds
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to push the new tag and commit
+      packages: write  # Required to publish artifacts to GitHub Packages
+
+    steps:
+      # 1. Checkout Code (Full history needed for tags)
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Setup Java 11 & Maven Settings
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          server-id: github # Must match <id>github</id> in your pom.xml distributionManagement
+          settings-path: ${{ github.workspace }}
+
+      # 3. Calculate Next Version (Shell Script)
+      - name: Calculate Next Version
+        id: version
+        run: |
+          # Get the latest tag, default to v0.0.0 if none exists
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Current Tag: $LATEST_TAG"
+
+          # Remove 'v' prefix
+          VERSION_NO_PREFIX=${LATEST_TAG#v}
+
+          # Split into parts (Major.Minor.Patch)
+          IFS='.' read -r -a PARTS <<< "$VERSION_NO_PREFIX"
+          PATCH=${PARTS[2]}
+          
+          # Increment Patch
+          NEW_PATCH=$((PATCH + 1))
+          
+          # New Version Strings
+          NEW_TAG="v${PARTS[0]}.${PARTS[1]}.$NEW_PATCH"
+          MVN_VERSION="${PARTS[0]}.${PARTS[1]}.$NEW_PATCH"
+          
+          echo "New Tag: $NEW_TAG"
+          echo "Maven Version: $MVN_VERSION"
+          
+          # Save to Env variables for next steps
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+          echo "MVN_VERSION=$MVN_VERSION" >> $GITHUB_ENV
+
+      # 4. Update POM Versions (Parent + Children)
+      - name: Update POM Versions
+        run: |
+          mvn versions:set -DnewVersion=${{ env.MVN_VERSION }} -DgenerateBackupPoms=false -DprocessAllModules=true
+
+      # 5. Build (Skipping Tests)
+      - name: Build and Verify
+        run: mvn clean verify -DskipTests
+
+      # 6. Commit Version Bump & Push Tag
+      - name: Commit and Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Stage only modified tracked files (pom.xml updates)
+          git add -u
+          
+          # Commit with [skip ci] to prevent infinite loop
+          git commit -m "Bump version to ${{ env.NEW_TAG }} [skip ci]"
+          git push origin main
+          
+          # Create and push the tag
+          git tag ${{ env.NEW_TAG }}
+          git push origin ${{ env.NEW_TAG }}
+
+      # 7. Publish to GitHub Packages
+      - name: Publish to GitHub Packages
+        run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml -DskipTests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
