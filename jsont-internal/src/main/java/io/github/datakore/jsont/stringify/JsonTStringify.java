@@ -1,190 +1,181 @@
 package io.github.datakore.jsont.stringify;
 
-import io.github.datakore.jsont.JsonTType;
 import io.github.datakore.jsont.adapters.AdapterRegistry;
 import io.github.datakore.jsont.adapters.SchemaAdapter;
-import io.github.datakore.jsont.grammar.data.JsontScalarType;
-import io.github.datakore.jsont.grammar.schema.ast.FieldModel;
-import io.github.datakore.jsont.grammar.schema.ast.SchemaCatalog;
-import io.github.datakore.jsont.grammar.schema.ast.SchemaModel;
+import io.github.datakore.jsont.exception.SchemaException;
+import io.github.datakore.jsont.grammar.schema.ast.*;
+import io.github.datakore.jsont.grammar.schema.coded.*;
 import io.github.datakore.jsont.grammar.types.*;
-import io.github.datakore.jsont.grammar.types.*;
+import io.github.datakore.jsont.util.Constants;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 public class JsonTStringify {
     private final AdapterRegistry registry;
     private final SchemaCatalog catalog;
+    private final BooleanEncodeDecoder booleanEncoder = new BooleanEncodeDecoder();
+    private final StringEncodeDecoder stringEncoder = new StringEncodeDecoder();
+    private final NumberEncodeDecoder numberEncoder = new NumberEncodeDecoder();
+    private final DateEncodeDecoder dateEncoder = new DateEncodeDecoder();
+    private final BinaryEncodeDecoder binEncoder = new BinaryEncodeDecoder();
 
     public JsonTStringify(AdapterRegistry registry, SchemaCatalog catalog) {
         this.catalog = catalog;
         this.registry = registry;
     }
 
-    public <T extends JsonTType> String stringifySchema(Class<T> type) {
-//        if (catalog != null && catalog.getSchema(type.getSimpleName()) != null) {
-//            return catalog.toString();
-//        }
-        Map<String, String> schemaContent = new LinkedHashMap<>();
-        emitSchema(schemaContent, type.getSimpleName());
-        return emitSchemas(schemaContent);
-    }
-
-    private String emitSchemas(Map<String, String> schemaContent) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{\n")
-                .append("\tschemas: {\n")
-                .append(schemaContent.keySet().stream().map(k -> schemaContent.get(k)).collect(Collectors.joining(",")))
-                .append("\n\t}\n")
-                .append("}");
-        return sb.toString();
-    }
-
-    private void emitSchema(Map<String, String> list, String schemaName) {
-        if (list.containsKey(schemaName)) {
-            return;
+    public <T> String stringifySchema(Class<T> type) {
+        SchemaModel schema = catalog.resolveSchema(type.getSimpleName());
+        if (schema == null) {
+            return "";
         }
-        SchemaAdapter<?> adapter = registry.resolve(schemaName);
-        list.putIfAbsent(schemaName, adapter.toSchemaDef());
-        List<Class<?>> children = adapter.childrenTypes();
-        if (children != null && !children.isEmpty()) {
-            children.stream().forEach(clz -> emitSchema(list, clz.getSimpleName()));
+        Set<String> schemas = new HashSet<>();
+        schemas.addAll(findSchemasOf(type.getSimpleName()));
+        Set<String> enums = new HashSet<>();
+        enums.addAll(findEnumsOf(type.getSimpleName()));
+        URL baseUrl = null;
+        try {
+            baseUrl = new URL("https://datakore.github.io");
+        } catch (MalformedURLException e) {
+            //
         }
+        NamespaceT ns = new NamespaceT(baseUrl);
+        SchemaCatalog newCatalog = new SchemaCatalog();
+        schemas.forEach(s -> {
+            SchemaModel schema1 = catalog.getSchema(s);
+            newCatalog.addSchema(schema1);
+        });
+        enums.forEach(e -> {
+            EnumModel enumModel = catalog.getEnum(e);
+            newCatalog.addEnum(e, enumModel);
+        });
+        ns.addCatalog(newCatalog);
+        return ns.toString();
     }
 
-    public <T extends JsonTType> String stringifyData(List<T> listObject, StringifyMode mode) {
+    private List<String> findEnumsOf(String simpleName) {
+        SchemaModel schema = catalog.getSchema(simpleName);
+        if (schema != null) {
+            List<String> types = schema.referencedEnums();
+            schema.referencedTypes().forEach(t -> types.addAll(findEnumsOf(t)));
+            return types;
+        }
+        return Collections.emptyList();
+    }
+
+    private List<String> findSchemasOf(String simpleName) {
+        SchemaModel schema = catalog.getSchema(simpleName);
+        if (schema != null) {
+            List<String> types = new ArrayList<>();
+            types.add(simpleName);
+            schema.referencedTypes().forEach(t -> types.addAll(findSchemasOf(t)));
+            return types;
+        }
+        return Collections.emptyList();
+    }
+
+    public <T> String stringifyData(List<T> listObject, StringifyMode mode) {
         if (listObject == null || listObject.isEmpty()) {
             return "";
         }
         String schemaName = listObject.get(0).getClass().getSimpleName();
+        SchemaModel schema = catalog.getSchema(schemaName);
+        if (schema == null) {
+            throw new SchemaException("Data schema not found, please supply a valid catalog/schema");
+        }
         StringBuilder sb = new StringBuilder();
         if (mode == StringifyMode.SCHEMA_AND_DATA) {
-            Map<String, String> schemasContentMap = new LinkedHashMap<>();
-            emitSchema(schemasContentMap, schemaName);
-            sb.append(emitSchemas(schemasContentMap));
+            sb.append(stringifySchema(listObject.get(0).getClass()));
         }
         sb.append(emitDataSection(listObject, schemaName));
         return sb.toString();
     }
 
-    private <T extends JsonTType> String emitDataSection(List<T> listObject, String schemaName) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
-        sb.append("data-schema:").append(schemaName);
-        sb.append(",data: [");
-        emitListData(listObject, sb);
-        sb.append("]");
-        sb.append("}");
-        return sb.toString();
+    private <T> String emitDataSection(List<T> listObject, String schemaName) {
+        String sb = "{" +
+                "data-schema:" + schemaName +
+                ",data: " +
+                emitListData(listObject) +
+                "}";
+        return sb;
     }
 
-    private <T extends JsonTType> void emitListData(List<T> listObject, StringBuilder sb) {
-        String schemaName = listObject.get(0).getClass().getSimpleName();
-        AtomicInteger rowCounter = new AtomicInteger();
-        Map<String, AtomicInteger> counterMap = new LinkedHashMap<>();
-        counterMap.putIfAbsent(String.format("%s-", schemaName), rowCounter);
-        listObject.stream().forEach(obj -> emitData(counterMap, schemaName, obj, sb, ""));
-    }
-
-    private void emitData(Map<String, AtomicInteger> counter, String schema, JsonTType object, StringBuilder sb, String fieldName) {
-        SchemaModel model = catalog.getSchema(schema);
-        SchemaAdapter<?> adapter = registry.resolve(schema);
-        int rowIndex = getCounter(counter, schema, fieldName);
-        if (getCounter(counter, schema, fieldName) > 1) {
-            sb.append("\n,");
-        }
-        sb.append("{");
-        StringBuilder nsb = new StringBuilder();
-        for (int i = 0; i < model.fieldCount(); i++) {
-            FieldModel fm = model.fields().get(i);
-            if (nsb.length() > 0) {
-                nsb.append(",");
-            }
-            if (fm.type() instanceof NullType) {
-                nsb.append("null");
-            } else if (fm.type() instanceof ObjectType) {
-                ObjectType objectType = (ObjectType) fm.type();
-                String fieldName1 = String.format("%d%s", rowIndex, fm.name());
-                String key = String.format("%s-%s", objectType.schema(), fieldName1);
-                counter.putIfAbsent(key, new AtomicInteger());
-                JsonTType element = (JsonTType) adapter.get(object, fm.name());
-                emitData(counter, objectType.schema(), element, nsb, fieldName1);
-            } else if (fm.type() instanceof ArrayType) {
-                ArrayType at = (ArrayType) fm.type();
-                Object o = adapter.get(object, fm.name());
-                nsb.append("[");
-                if (at.elementType() instanceof ObjectType) {
-                    emitListData((List<JsonTType>) o, nsb);
-                } else if (at.elementType() instanceof ScalarType) {
-                    StringBuilder arrB = new StringBuilder();
-                    if (o instanceof List || o instanceof Set || o instanceof Collection) {
-                        handleCollection(at.elementType(), o, nsb);
-                    } else if (o instanceof Object[]) {
-                        handleArrays(at.elementType(), o, nsb);
-                    }
+    private <T> String emitListData(List<T> listObject) {
+        if (listObject == null || listObject.isEmpty()) {
+            return "[]";
+        } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append("[");
+            int size = listObject.size();
+            StringBuilder sb1 = new StringBuilder();
+            for (int i = 0; i < size; i++) {
+                if (sb1.length() > 0) {
+                    sb1.append(",");
                 }
-                nsb.append("]");
-            } else if (fm.type() instanceof ScalarType) {
-                Object o = adapter.get(object, fm.name());
-                Object oo = handleScalar(((ScalarType) fm.type()).valueType(), o);
-                nsb.append(oo);
+                T object = listObject.get(i);
+                sb1.append(emitObjectData(object));
+            }
+            sb.append(sb1);
+            sb.append("]");
+            return sb.toString();
+        }
+    }
+
+    private <T> String emitObjectData(T object) {
+        if (object != null) {
+            return "{}";
+        }
+        SchemaModel schema = catalog.getSchema(object.getClass().getSimpleName());
+        if (schema == null) {
+            return object.toString();
+        }
+        SchemaAdapter<?> adapter = registry.resolve(object.getClass().getSimpleName());
+        StringBuilder result = new StringBuilder();
+        result.append("{");
+        StringBuilder values = new StringBuilder();
+        for (int i = 0; i < schema.fieldCount(); i++) {
+            if (i > 0) {
+                values.append(",");
+            }
+            FieldModel fm = schema.fields().get(i);
+            Object fieldValue = adapter.get(object, fm.getFieldName());
+            if (fieldValue == null || fm.getFieldType() instanceof NullType) {
+                values.append("null");
+            } else if (fm.getFieldType() instanceof UnspecifiedType) {
+                values.append(Constants.UNSPECIFIED_TYPE);
+            } else if (fm.getFieldType() instanceof ObjectType) {
+                values.append(emitObjectData(fieldValue));
+            } else if (fm.getFieldType() instanceof ArrayType) {
+                values.append(emitListData((List<?>) fieldValue));
+            } else if (fm.getFieldType() instanceof ScalarType) {
+                values.append(handleScalarType(fieldValue, fm));
             }
         }
-        sb.append(nsb);
-        sb.append("}");
+        result.append(values);
+        result.append("}");
+        return result.toString();
     }
 
-    private int getCounter(Map<String, AtomicInteger> counter, String schema, String fieldName) {
-        String key = String.format("%s-%s", schema, fieldName);
-        return counter.get(key).getAndIncrement();
-    }
-
-    private Object handleScalar(JsontScalarType type, Object o) {
-        if (o == null) {
-            return "null";
-        }
-        StringBuilder sb = new StringBuilder();
-        switch (type) {
-            case TIME:
-            case STRING:
-            case ZIP:
-            case ZIP5:
-            case ZIP6:
-            case UUID:
-            case URI:
-            case EMAIL:
-                return sb.append("\"").append(o).append("\"").toString();
+    private String handleScalarType(Object fieldValue, FieldModel fm) {
+        ScalarType scalarType = (ScalarType) fm.getFieldType();
+        JsonBaseType jsonBaseType = scalarType.elementType();
+        String lexerType = jsonBaseType.lexerValueType();
+        switch (lexerType) {
+            case "Boolean":
+                return booleanEncoder.encode(jsonBaseType, fieldValue);
+            case "String":
+                return stringEncoder.encode(jsonBaseType, fieldValue);
+            case "Number":
+                return numberEncoder.encode(jsonBaseType, fieldValue);
+            case "Date":
+                return dateEncoder.encode(jsonBaseType, fieldValue);
+            case "Binary":
+                return binEncoder.encode(jsonBaseType, fieldValue);
             default:
-                return sb.append(o).toString();
+                return fieldValue.toString();
         }
     }
-
-    private void handleArrays(ValueType valueType, Object o, StringBuilder nsb) {
-        List<Object> finalList = List.of((Object[]) o);
-        StringBuilder arrB = new StringBuilder();
-        for (Object oo : (List) finalList) {
-            if (arrB.length() > 0) {
-                arrB.append(",");
-            }
-            arrB.append(handleScalar(valueType.valueType(), oo));
-        }
-        nsb.append(arrB);
-    }
-
-    private void handleCollection(ValueType valueType, Object o, StringBuilder nsb) {
-        List<Object> finalList = new ArrayList<>();
-        finalList.addAll((Collection<?>) o);
-        StringBuilder arrB = new StringBuilder();
-        for (Object oo : (List) finalList) {
-            if (arrB.length() > 0) {
-                arrB.append(",");
-            }
-            arrB.append(handleScalar(valueType.valueType(), oo));
-        }
-        nsb.append(arrB);
-    }
-
 
 }

@@ -3,7 +3,6 @@ package io.github.datakore.jsont;
 import io.github.datakore.jsont.adapters.SchemaAdapter;
 import io.github.datakore.jsont.entity.Address;
 import io.github.datakore.jsont.entity.User;
-import io.github.datakore.jsont.io.JsonTWriter;
 
 import java.util.List;
 
@@ -66,12 +65,11 @@ public class UserAdapter implements SchemaAdapter<User> {
                 break;
             case "tags":
                 if (value instanceof List) {
-                    List<String> tags = List.class.cast(value);
+                    List<String> tags = (List) value;
                     String[] tagsArr = tags.toArray(new String[]{});
                     user.setTags(tagsArr);
                 }
             default:
-                ;
         }
     }
 
@@ -92,7 +90,6 @@ public class UserAdapter implements SchemaAdapter<User> {
             case "tags":
                 return user.getTags();
             default:
-                ;
         }
         return null;
     }

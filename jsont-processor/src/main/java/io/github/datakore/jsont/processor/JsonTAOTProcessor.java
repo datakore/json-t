@@ -16,7 +16,7 @@ import javax.tools.Diagnostic;
 import java.util.*;
 
 @SupportedAnnotationTypes("org.jsont.annotations.JsonTSerializable")
-@SupportedSourceVersion(SourceVersion.RELEASE_11)
+@SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class JsonTAOTProcessor extends AbstractProcessor {
 
     private Elements elementUtils;
@@ -38,17 +38,17 @@ public class JsonTAOTProcessor extends AbstractProcessor {
         for (Element element : roundEnv.getElementsAnnotatedWith(JsonTSerializable.class)) {
             if (element.getKind() != ElementKind.CLASS) {
                 error(element, "Only classes can be annotated with @JsonTSerializable");
+            } else {
+                TypeElement typeElement = (TypeElement) element;
+                processSerializableType(typeElement);
             }
-            TypeElement typeElement = (TypeElement) element;
-
-            processSerializableType(typeElement);
         }
         return false;
     }
 
     private void processSerializableType(TypeElement typeElement) {
         JsonTSerializable ann = typeElement.getAnnotation(JsonTSerializable.class);
-
+        assert ann != null && ann.schema() != null;
         String schemaName = ann.schema().isEmpty()
                 ? typeElement.getSimpleName().toString()
                 : ann.schema();

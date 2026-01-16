@@ -1,10 +1,11 @@
 package io.github.datakore.jsont.adapters;
 
-import io.github.datakore.jsont.io.JsonTWriter;
-
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-public class MapAdapter implements SchemaAdapter<JsonTMap<String, Object>> {
+public class MapAdapter implements SchemaAdapter<Map<String, Object>> {
 
     @Override
     public String toSchemaDef() {
@@ -13,31 +14,34 @@ public class MapAdapter implements SchemaAdapter<JsonTMap<String, Object>> {
 
     @Override
     public List<Class<?>> childrenTypes() {
-        return List.of();
+        return Collections.emptyList();
     }
 
     @Override
-    public Class<JsonTMap<String, Object>> logicalType() {
-        return null;
+    @SuppressWarnings("unchecked")
+    public Class<Map<String, Object>> logicalType() {
+        return (Class<Map<String, Object>>) (Class<?>) Map.class;
     }
 
     @Override
-    public JsonTMap<String, Object> createTarget() {
-        return null;
+    public Map<String, Object> createTarget() {
+        return new LinkedHashMap<>();
     }
 
-    @Override
-    public void writeObject(Object target, JsonTWriter writer) {
-
-    }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void set(Object target, String fieldName, Object valuee) {
-
+        if (target instanceof Map) {
+            ((Map<String, Object>) target).put(fieldName, valuee);
+        }
     }
 
     @Override
     public Object get(Object target, String fieldName) {
+        if (target instanceof Map) {
+            return ((Map<?, ?>) target).get(fieldName);
+        }
         return null;
     }
 }

@@ -12,7 +12,10 @@ import javax.lang.model.util.Elements;
 import javax.tools.JavaFileObject;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class AdapterGenerator {
@@ -26,7 +29,7 @@ public class AdapterGenerator {
         }
     }
 
-    private static Map.Entry<String, String> handleProperType(String fqType, Set<String> imports) {
+    private static KeyValuePair handleProperType(String fqType, Set<String> imports) {
         // java.util.List<java.lang.String>
         String fqClass = null;
         String componentClass = null;
@@ -50,22 +53,7 @@ public class AdapterGenerator {
         }
         String finalComponentClass = componentClass;
         String finalFqClass = fqClass;
-        return new Map.Entry<>() {
-            @Override
-            public String getKey() {
-                return finalFqClass;
-            }
-
-            @Override
-            public String getValue() {
-                return finalComponentClass;
-            }
-
-            @Override
-            public String setValue(String value) {
-                throw new UnsupportedOperationException("Not allowed");
-            }
-        };
+        return new KeyValuePair(finalFqClass, finalComponentClass);
     }
 
     public static void generate(AnnoTypeModel typeModel, Writer writer) throws IOException {
@@ -88,7 +76,7 @@ public class AdapterGenerator {
 
         for (AnnoFieldModel field : typeModel.fields()) {
             String jsonName = field.javaName();
-            Map.Entry<String, String> type = handleProperType(field.declaredType(), imports);
+            KeyValuePair type = handleProperType(field.declaredType(), imports);
             FieldMeta meta = new FieldMeta(field, type.getKey(), type.getValue());
             fields.add(meta);
         }

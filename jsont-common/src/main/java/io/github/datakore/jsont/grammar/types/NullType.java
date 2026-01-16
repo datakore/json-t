@@ -1,33 +1,49 @@
 package io.github.datakore.jsont.grammar.types;
 
-import io.github.datakore.jsont.exception.DataException;
-import io.github.datakore.jsont.grammar.data.JsontScalarType;
+import io.github.datakore.jsont.grammar.data.ValueNodeKind;
 
 public class NullType implements ValueType {
-    @Override
-    public String name() {
-        return JsontScalarType.NULL.name();
+
+    private final int col;
+    private final String fieldName;
+
+    public NullType(int col, String fieldName) {
+        this.col = col;
+        this.fieldName = fieldName;
     }
 
     @Override
-    public JsontScalarType valueType() {
-        return JsontScalarType.NULL;
+    public String fieldName() {
+        return fieldName;
     }
 
     @Override
-    public boolean isOptional() {
+    public int colPosition() {
+        return this.col;
+    }
+
+    @Override
+    public String type() {
+        return ValueNodeKind.NULL.name();
+    }
+
+    @Override
+    public ValueNodeKind nodeKind() {
+        return ValueNodeKind.NULL;
+    }
+
+    @Override
+    public boolean isObject() {
         return false;
     }
 
     @Override
-    public void setOptional(boolean b) {
-        throw new IllegalArgumentException("Not Allowed");
+    public boolean isArray() {
+        return false;
     }
 
     @Override
-    public void validateShape(Object raw) {
-        if (raw != null) {
-            throw new DataException("Null type can not hold object");
-        }
+    public boolean isEnum() {
+        return false;
     }
 }

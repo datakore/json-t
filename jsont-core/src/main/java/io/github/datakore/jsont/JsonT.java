@@ -1,22 +1,19 @@
 package io.github.datakore.jsont;
 
-import org.antlr.v4.runtime.CharStreams;
-import io.github.datakore.jsont.core.JsonTBuilder;
-import io.github.datakore.jsont.core.JsonTContext;
-
-import java.io.IOException;
-import java.nio.file.Path;
+import io.github.datakore.jsont.core.JsonTConfig;
+import io.github.datakore.jsont.core.JsonTConfigBuilder;
 
 public final class JsonT {
-    public static JsonTBuilder builder() {
-        return new JsonTBuilder();
+    private JsonT() {
     }
 
-    public static JsonTContext parseCatalog(String source) throws IOException {
-        return builder().parseCatalog(CharStreams.fromString(source));
+    // 1. Simple Entry
+    public static JsonTConfig configure() {
+        return new JsonTConfigBuilder().build();
     }
 
-    public static JsonTContext parseCatalog(Path path) throws IOException {
-        return builder().parseCatalog(path);
+    // 2. Custom Entry
+    public static JsonTConfigBuilder configureBuilder() {
+        return new JsonTConfigBuilder();
     }
 }

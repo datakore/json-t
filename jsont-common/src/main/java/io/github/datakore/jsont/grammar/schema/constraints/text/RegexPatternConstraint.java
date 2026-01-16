@@ -4,12 +4,13 @@ import io.github.datakore.jsont.errors.ErrorLocation;
 import io.github.datakore.jsont.errors.ValidationError;
 import io.github.datakore.jsont.grammar.data.ScalarNode;
 import io.github.datakore.jsont.grammar.data.ValueNode;
-import io.github.datakore.jsont.grammar.schema.constraints.FieldConstraint;
+import io.github.datakore.jsont.grammar.schema.constraints.BaseConstraint;
 
-public class RegexPatternConstraint implements FieldConstraint {
+public class RegexPatternConstraint extends BaseConstraint {
     private final String pattern;
 
-    public RegexPatternConstraint(String pattern) {
+    public RegexPatternConstraint(ConstraitType type, String pattern) {
+        super(type);
         this.pattern = pattern;
     }
 
@@ -36,4 +37,8 @@ public class RegexPatternConstraint implements FieldConstraint {
         return null;
     }
 
+    @Override
+    protected Object constraintValue() {
+        return this.pattern;
+    }
 }

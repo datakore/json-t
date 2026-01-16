@@ -1,26 +1,29 @@
 package io.github.datakore.jsont.grammar.schema.raw;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class SchemaNode {
-    private String name;
-    private List<FieldNode> fields;
+    private final String name;
+    private final List<FieldNode> fields;
+
+    public SchemaNode(String name) {
+        this.name = name;
+        this.fields = new ArrayList<>();
+    }
 
     public List<FieldNode> getFields() {
         return fields;
     }
 
-    public void setFields(List<FieldNode> fields) {
-        this.fields = fields;
+    public void addField(FieldNode field) {
+        this.fields.add(field);
     }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
 
     @Override
     public boolean equals(Object obj) {

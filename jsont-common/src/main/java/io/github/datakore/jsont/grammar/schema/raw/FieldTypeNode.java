@@ -1,28 +1,16 @@
 package io.github.datakore.jsont.grammar.schema.raw;
 
+import io.github.datakore.jsont.grammar.data.ValueNodeKind;
+
 public class FieldTypeNode {
 
     private final String typeName;
-    private final boolean isArray;
-    private final boolean isObject;
+    private final ValueNodeKind kind;
     private boolean optional;
 
-    public FieldTypeNode(String typeName, boolean isArray, boolean isObject) {
+    public FieldTypeNode(String typeName, ValueNodeKind kind) {
         this.typeName = typeName;
-        this.isArray = isArray;
-        this.isObject = isObject;
-    }
-
-    public String getTypeName() {
-        return typeName;
-    }
-
-    public boolean isArray() {
-        return isArray;
-    }
-
-    public boolean isObject() {
-        return isObject;
+        this.kind = kind;
     }
 
     public boolean isOptional() {
@@ -31,6 +19,22 @@ public class FieldTypeNode {
 
     public void setOptional(boolean optional) {
         this.optional = optional;
+    }
+
+    public boolean isObject() {
+        return kind == ValueNodeKind.OBJECT;
+    }
+
+    public boolean isArray() {
+        return kind == ValueNodeKind.ARRAY;
+    }
+
+    public String getTypeName() {
+        return typeName;
+    }
+
+    public ValueNodeKind getKind() {
+        return kind;
     }
 
 }

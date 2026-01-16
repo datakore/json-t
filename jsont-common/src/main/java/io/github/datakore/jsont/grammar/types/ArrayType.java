@@ -1,58 +1,46 @@
 package io.github.datakore.jsont.grammar.types;
 
-import io.github.datakore.jsont.grammar.data.JsontScalarType;
+import io.github.datakore.jsont.grammar.data.ValueNodeKind;
 
-import java.util.List;
+public class ArrayType extends BaseType {
 
-public class ArrayType implements ValueType {
     private final ValueType elementType;
-    private final boolean optional;
+    private final int colPosition;
+    private final String fieldName;
 
-    public ArrayType(ValueType elementType, boolean optional) {
+    public ArrayType(int col, String fieldName, ValueType elementType) {
         this.elementType = elementType;
-        this.optional = optional;
+        this.colPosition = col;
+        this.fieldName = fieldName;
     }
 
     @Override
-    public String name() {
-        return String.format("%s[]", elementType.name());
+    public String fieldName() {
+        return fieldName;
     }
 
     @Override
-    public JsontScalarType valueType() {
-        return elementType.valueType();
-    }
-
-    public ValueType elementType() {
-        return this.elementType;
+    public int colPosition() {
+        return colPosition;
     }
 
     @Override
-    public boolean isOptional() {
-        return optional;
+    public String type() {
+        return elementType.type() + "[]";
+    }
+
+    public ValueType getElementType() {
+        return elementType;
     }
 
     @Override
-    public void setOptional(boolean b) {
-        throw new IllegalArgumentException("Not allowed for ArrayType");
+    public ValueNodeKind nodeKind() {
+        return ValueNodeKind.ARRAY;
     }
 
-    @Override
-    public void validateShape(Object raw) {
-        if (raw == null) {
-            return; // nullability handled in ValueType.validate()
-        }
-        if (!(raw instanceof List)) {
-//            throw new IllegalArgumentException(
-//                    "Expected list, but got " + raw.getClass().getName());
-        }
-    }
 
     @Override
-    public void checkNullability(Object raw) {
-        if (raw == null && !isOptional()) {
-            throw new IllegalArgumentException(
-                    "Null value not allowed for type " + name());
-        }
+    public boolean isArray() {
+        return true;
     }
 }

@@ -24,4 +24,9 @@ public class DefaultErrorCollector implements ErrorCollector {
         return errors;
     }
 
+    @Override
+    public void clearErrors() {
+        this.errors.clear();
+    }
+
 }

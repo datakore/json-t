@@ -2,17 +2,59 @@ grammar JsonT;
 
 /*
  * ========================
- *  Parser Rules
+ * Parser Rules
  * ========================
  */
 
-
 jsonT
-    :
-    catalog?
-    data?
-    EOF
+    : nameSpace? data? EOF
     ;
+
+/*
+Namespace should provide something like this
+{
+  namespace: {
+    baseUrl: "https://api.datakore.com/v1",
+    catalogs: [
+      {
+        schemas: [
+          User: {
+            i32: id,
+            str: username(min 5),
+            str: email?
+          },
+          Address: {
+             str: city,
+             str: zipCode
+          }
+        ],
+        enums: [
+          Status: [ ACTIVE, INACTIVE, SUSPENDED ],
+          Role: [ ADMIN, USER ]
+        ]
+      }
+    ]
+  }
+}
+*/
+nameSpace
+    : LB NS_NAME COLON LB
+        NSURL_NAME COLON nsBaseUrl COMMA
+        CATALOGS_NAME COLON LA catalog (COMMA catalog)* RA
+        RB RB
+    ;
+
+nsBaseUrl
+    : STRING ;
+
+nsSchemaName
+    : SCHEMAID ;
+
+nsFieldName
+    : FIELDID ;
+
+nsEnumName
+    : SCHEMAID ;
 
 catalog
     : LB
@@ -21,25 +63,16 @@ catalog
     RB
     ;
 
-data
-    : LB
-    dataSchemaSection
-    COMMA dataSection
-    RB
-    ;
 /*
- * ---- schemas ----
- * schemas : {
- *   Customer : { ... },
- *   Address  : { ... }
- * }
+ * Updated to match Map structure:
+ * schemas: { User: { ... } }
  */
 schemasSection
-    : SCHEMAS COLON LB schemaEntry (COMMA schemaEntry)* RB
+    : SCHEMAS COLON LA schemaEntry (COMMA schemaEntry)* RA
     ;
 
 schemaEntry
-    : IDENT COLON schemaNode
+    : nsSchemaName COLON schemaNode
     ;
 
 schemaNode
@@ -47,12 +80,12 @@ schemaNode
     ;
 
 /*
- * Field definition
- * type : fieldName [ ? ] [ ( constraints ) ]
- * (constraints parsed later, not now)
+ * FIX 2: Made parentheses optional
+ * Valid:  str:name
+ * Valid:  str:name(min 5)
  */
 fieldDecl
-    : typeRef COLON IDENT optionalMark? LP ( constraintsSection )? RP
+    : typeRef COLON nsFieldName optionalMark? (LP constraintsSection? RP)?
     ;
 
 optionalMark
@@ -64,11 +97,11 @@ constraintsSection
     ;
 
 constraint
-    : constraintName LP constraintValue RP
+    : constraintName EQ constraintValue
     ;
 
 constraintName
-    : IDENT
+    : FIELDID
     ;
 
 constraintValue
@@ -80,46 +113,42 @@ enumsSection
     ;
 
 enumDef
-    : IDENT enumBody
+    : nsEnumName COLON enumBody
     ;
 
 enumBody
-    : LB enumValue (COMMA enumValue)* RB
+    : LA enumValueConstant (COMMA enumValueConstant)* RA
     ;
 
-enumValue
-    : IDENT
+enumValueConstant
+    : CONSTID
     ;
-/*
- * ---- data-schema ----
- * data-schema : Customer
- */
 
 dataSchemaSection
-    : DATA_SCHEMA COLON IDENT
+    : DATA_SCHEMA COLON SCHEMAID
     ;
 
 /*
  * ---- data ----
- * data : [
- *   { v1, v2, v3 },
- *   { v1, v2, v3 }
- * ]
  */
+data
+    : LB
+    dataSchemaSection
+    COMMA dataSection
+    RB
+    ;
+
 dataSection
     : DATA COLON LA dataRow (COMMA dataRow)* RA
     ;
 
 dataRow
-    : LB value (COMMA value)* RB
+    : objectValue
     ;
 
-/*
- * ---- values ----
- * Meaning decided by schema type, not syntax
- */
 value
     : scalarValue
+    | enumValue
     | objectValue
     | arrayValue
     ;
@@ -128,9 +157,13 @@ scalarValue
     : STRING
     | NUMBER
     | BOOLEAN
+    | UNSPECIFIED
     | NULL
-    | IDENT
     ;
+
+enumValue
+    : CONSTID ;
+
 objectValue
     : LB value (COMMA value)* RB
     ;
@@ -141,24 +174,45 @@ arrayValue
 
 /*
  * ---- types ----
- * int, str, uuid, <Address>, str[], etc.
  */
 typeRef
-    : IDENT arraySuffix?
-    | LT IDENT GT arraySuffix?
+    : (baseType | objectTypeStruct) arraySuffix?
     ;
+
+objectTypeStruct
+    : LT objectTypeName LT
+    ;
+
+objectTypeName
+    : SCHEMAID ;
 
 arraySuffix
     : LA RA
     ;
 
+baseType
+    : K_I16     | K_I32  | K_I64      | K_U16       | K_U32   | K_U64
+    | K_D32     | K_D64  | K_D128
+    | K_DATE    | K_TIME | K_DATETIME | K_TIMESTAMP
+    | K_TSZ     | K_INST | K_INSTZ
+    | K_YEAR    | K_MON  | K_DAY      | K_YEARMON   | K_MNDAY
+    | K_BIN     | K_OID  | K_HEX
+    | K_STRING  | K_NSTR | K_URI      | K_UUID
+    | K_BOOLEAN
+    ;
+
 /*
  * ========================
- *  Lexer Rules
+ * Lexer Rules
  * ========================
  */
 
-// Keywords (must come before IDENT)
+// FIX 3: Added missing keywords for Namespace
+NS_NAME     : 'namespace';
+NSURL_NAME  : 'baseUrl';
+CATALOGS_NAME : 'catalogs';
+
+// Keywords
 SCHEMAS     : 'schemas';
 DATA        : 'data';
 DATA_SCHEMA : 'data-schema';
@@ -175,28 +229,63 @@ COLON   : ':';
 COMMA   : ',';
 LT      : '<';
 GT      : '>';
+EQ      : '=';
 QMARK   : '?';
+
+// Types
+K_I16   : 'i16' ;
+K_I32   : 'i32' ;
+K_I64   : 'i64' ;
+K_U16   : 'u16' ;
+K_U32   : 'u32' ;
+K_U64   : 'u64' ;
+K_D32   : 'd32' ;
+K_D64   : 'd64' ;
+K_D128  : 'd128' ;
+K_DATE  : 'date' ;
+K_TIME  : 'time' ;
+K_DATETIME : 'dtm' ;
+K_TIMESTAMP : 'ts' ;
+K_TSZ   : 'tsz' ;
+K_INST  : 'inst' ;
+K_INSTZ : 'insz' ;
+K_YEAR  : 'yr' ;
+K_MON   : 'mon' ;
+K_DAY   : 'day' ;
+K_YEARMON : 'ym' ;
+K_MNDAY : 'md' ;
+K_BIN   : 'b64' ;
+K_OID   : 'oid' ;
+K_HEX   : 'hex' ;
+K_STRING  : 'str' ;
+K_NSTR  : 'nstr' ;
+K_URI   : 'uri' ;
+K_UUID  : 'uuid' ;
+K_BOOLEAN : 'bool';
 
 // Literals
 BOOLEAN : 'true' | 'false';
-NULL    : 'null' | '\u2205';
+NULL    : 'null' | 'nil';
+UNSPECIFIED : '_';
 
 NUMBER
     : '-'? [0-9]+ ('.' [0-9]+)?
     ;
 
-// Free text only
 STRING
     : '"'  ( '\\' . | ~["\\] )* '"'
     | '\'' ( '\\' . | ~['\\] )* '\''
     ;
 
-// Identifiers (types, schema names, unquoted scalar values)
-IDENT
-    : [a-zA-Z_] [a-zA-Z0-9_]*
+CONSTID : [A-Z] [A-Z0-9_]+
     ;
 
-// Whitespace
+SCHEMAID : [A-Z] [a-zA-Z0-9_]*
+    ;
+
+FIELDID : [a-z] [a-zA-Z0-9_]*
+    ;
+
 WS
     : [ \t\r\n]+ -> skip
     ;

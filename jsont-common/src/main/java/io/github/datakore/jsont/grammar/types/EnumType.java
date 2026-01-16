@@ -1,45 +1,42 @@
 package io.github.datakore.jsont.grammar.types;
 
-import io.github.datakore.jsont.grammar.data.JsontScalarType;
+import io.github.datakore.jsont.grammar.data.ValueNodeKind;
+import io.github.datakore.jsont.grammar.schema.ast.EnumModel;
 
-public class EnumType implements ValueType {
+public class EnumType extends BaseType {
 
-    private final boolean optional;
-    private final JsontScalarType elementType;
-    private final String enumName;
+    private final EnumModel enumModel;
+    private final int col;
+    private final String fieldName;
 
-    public EnumType(String enumName, JsontScalarType elementType, boolean optional) {
-        this.enumName = enumName;
-        this.optional = optional;
-        this.elementType = elementType;
-    }
-
-    public String enumName() {
-        return enumName;
+    public EnumType(int col, String fieldName, EnumModel enumName) {
+        this.col = col;
+        this.fieldName = fieldName;
+        this.enumModel = enumName;
     }
 
     @Override
-    public String name() {
-        return this.elementType.name();
+    public String fieldName() {
+        return fieldName;
     }
 
     @Override
-    public JsontScalarType valueType() {
-        return this.elementType;
+    public int colPosition() {
+        return col;
     }
 
     @Override
-    public boolean isOptional() {
-        return this.optional;
+    public String type() {
+        return enumModel.name();
     }
 
     @Override
-    public void setOptional(boolean b) {
-        throw new IllegalArgumentException("Not Allowed");
+    public ValueNodeKind nodeKind() {
+        return ValueNodeKind.ENUM;
     }
 
     @Override
-    public void validateShape(Object raw) {
-        // Do nothing
+    public boolean isEnum() {
+        return true;
     }
 }

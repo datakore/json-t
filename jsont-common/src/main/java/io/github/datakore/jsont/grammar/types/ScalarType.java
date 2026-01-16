@@ -1,65 +1,44 @@
 package io.github.datakore.jsont.grammar.types;
 
-import io.github.datakore.jsont.exception.SchemaException;
-import io.github.datakore.jsont.grammar.data.JsontScalarType;
+import io.github.datakore.jsont.grammar.data.ValueNodeKind;
+import io.github.datakore.jsont.grammar.schema.ast.JsonBaseType;
 
-public class ScalarType implements ValueType {
-    private final JsontScalarType kind;
-    private boolean optional;
+public class ScalarType extends BaseType {
 
-    public ScalarType(JsontScalarType kind, boolean optional) {
+    private final JsonBaseType jsonBaseType;
+    private final ValueNodeKind kind;
+    private final int col;
+    private final String fieldName;
+
+    public ScalarType(int col, String fieldName, JsonBaseType jsonBaseType, ValueNodeKind kind) {
+        this.jsonBaseType = jsonBaseType;
         this.kind = kind;
-        this.optional = optional;
+        this.col = col;
+        this.fieldName = fieldName;
     }
 
     @Override
-    public String name() {
-        return kind.name().toLowerCase();
+    public String fieldName() {
+        return fieldName;
     }
 
     @Override
-    public JsontScalarType valueType() {
-        return this.kind;
+    public int colPosition() {
+        return col;
+    }
+
+    public JsonBaseType elementType() {
+        return jsonBaseType;
     }
 
     @Override
-    public boolean isOptional() {
-        return optional;
+    public String type() {
+        return this.jsonBaseType.identifier();
     }
 
     @Override
-    public void setOptional(boolean b) {
-        this.optional = b;
+    public ValueNodeKind nodeKind() {
+        return kind;
     }
 
-    @Override
-    public void validateShape(Object raw) {
-        if (raw == null) {
-            return; // handled by nullability
-        }
-
-        switch (kind) {
-            case NULL:
-                checkNullability(raw);
-                break;
-            case OBJECT:
-                throw new SchemaException(String.format("%s found, where a scalar value is expected", kind.name()));
-            case BOOLEAN:
-                if (!(raw instanceof Boolean)) {
-                    throw new SchemaException("Boolean value expected, found " + raw);
-                }
-                break;
-            case INT:
-            case LONG:
-            case DECIMAL:
-            case FLOAT:
-                if (!(raw instanceof Number)) {
-                    throw new SchemaException(String.format(
-                            "%s type expected, found other text %s", kind.name(), raw.toString()
-                    ));
-                }
-            default:
-        }
-
-    }
 }

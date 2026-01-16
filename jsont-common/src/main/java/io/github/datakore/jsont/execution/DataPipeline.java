@@ -1,25 +1,63 @@
 package io.github.datakore.jsont.execution;
 
-import io.github.datakore.jsont.exception.SchemaException;
-import io.github.datakore.jsont.grammar.data.RowNode;
-import io.github.datakore.jsont.grammar.schema.ast.SchemaCatalog;
-import io.github.datakore.jsont.grammar.schema.ast.SchemaModel;
+import io.github.datakore.jsont.errors.Severity;
+import io.github.datakore.jsont.errors.ValidationError;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import reactor.util.concurrent.Queues;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.locks.LockSupport;
 
 public class DataPipeline implements DataStream {
-    private final Sinks.Many<RowNode> sink =
-            Sinks.many().unicast().onBackpressureBuffer();
-    private final SchemaCatalog catalog;
-    private SchemaModel dataSchema;
+    private final Sinks.Many<Map<String, Object>> sink;
+    private final int backPressureSize;
+    private final Duration waitingTimeWhenQueueIsFull;
+    private final CSVErrorLogger errorLogger;
 
-    public DataPipeline(SchemaCatalog catalog) {
-        this.catalog = catalog;
+    public DataPipeline(int backPressureSize, Duration waitingTimeWhenQueueIsFull, CSVErrorLogger errorLogger) {
+        this.backPressureSize = backPressureSize;
+        this.waitingTimeWhenQueueIsFull = waitingTimeWhenQueueIsFull;
+        this.errorLogger = errorLogger;
+
+        this.sink = Sinks.many()
+                .unicast()
+                .onBackpressureBuffer(
+                        Queues.<Map<String, Object>>get(this.backPressureSize).get()
+                );
     }
 
     @Override
-    public void onRowParsed(RowNode row) {
-        sink.tryEmitNext(row);
+    public void onRowParsed(Map<String, Object> row) {
+        long start = System.nanoTime();
+        long timeoutNanos = waitingTimeWhenQueueIsFull.toNanos();
+
+        while (true) {
+            // Attempt to emit
+            Sinks.EmitResult result = sink.tryEmitNext(row);
+
+            if (result.isSuccess()) {
+                return; // Success! Move to next row.
+            }
+
+            // Check Timeout
+            if (System.nanoTime() - start > timeoutNanos) {
+                String msg = "Producer timed out waiting for consumer. Pipeline full for " + timeoutNanos + "ns";
+                RuntimeException exception = new RuntimeException(msg);
+                sink.tryEmitError(exception);
+                throw exception; // Abort the parser thread
+            }
+
+            if (result == Sinks.EmitResult.FAIL_OVERFLOW || result == Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER) {
+                // Buffer is full. Wait a tiny bit (backoff) and retry.  This effectively "BLOCKS" the parser thread.
+                LockSupport.parkNanos(100_000); // 0.1ms wait
+            } else {
+                // Fatal error (e.g., stream cancelled)
+                throw new RuntimeException("Emission failed: " + result);
+            }
+        }
     }
 
     @Override
@@ -28,23 +66,18 @@ public class DataPipeline implements DataStream {
     }
 
     @Override
-    public Flux<RowNode> rows() {
+    public Flux<Map<String, Object>> rows() {
         return sink.asFlux();
     }
 
-    @Override
-    public SchemaModel getDataSchema() {
-        return dataSchema;
-    }
 
     @Override
-    public void setDataSchema(String schema) {
-        if (catalog == null) {
-            throw new SchemaException("Empty catalog");
+    public void onRowError(int rowIndex, List<ValidationError> errors) {
+        errorLogger.log(rowIndex, errors);
+
+        if (errors.stream().anyMatch(err -> err.severity() == Severity.FATAL)) {
+            sink.tryEmitError(new RuntimeException("Fatal error processing row " + rowIndex));
         }
-        this.dataSchema = this.catalog.getSchema(schema);
-        if (this.dataSchema == null) {
-            throw new SchemaException("No such schema exists in the catalog");
-        }
+        // Continue further processing
     }
 }

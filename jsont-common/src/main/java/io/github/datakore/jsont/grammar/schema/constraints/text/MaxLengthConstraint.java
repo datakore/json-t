@@ -4,12 +4,13 @@ import io.github.datakore.jsont.errors.ErrorLocation;
 import io.github.datakore.jsont.errors.ValidationError;
 import io.github.datakore.jsont.grammar.data.ScalarNode;
 import io.github.datakore.jsont.grammar.data.ValueNode;
-import io.github.datakore.jsont.grammar.schema.constraints.FieldConstraint;
+import io.github.datakore.jsont.grammar.schema.constraints.BaseConstraint;
 
-public class MaxLengthConstraint implements FieldConstraint {
+public class MaxLengthConstraint extends BaseConstraint {
     private final int maxLength;
 
-    public MaxLengthConstraint(int maxLength) {
+    public MaxLengthConstraint(ConstraitType constraitType, int maxLength) {
+        super(constraitType);
         this.maxLength = maxLength;
     }
 
@@ -34,5 +35,10 @@ public class MaxLengthConstraint implements FieldConstraint {
                     String.valueOf(scalarNode.raw().length()));
         }
         return null;
+    }
+
+    @Override
+    protected Object constraintValue() {
+        return this.maxLength;
     }
 }

@@ -2,7 +2,6 @@ package io.github.datakore.jsont;
 
 import io.github.datakore.jsont.adapters.SchemaAdapter;
 import io.github.datakore.jsont.entity.Address;
-import io.github.datakore.jsont.io.JsonTWriter;
 
 import java.util.List;
 

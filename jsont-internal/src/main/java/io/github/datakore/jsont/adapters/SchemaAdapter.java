@@ -1,11 +1,8 @@
 package io.github.datakore.jsont.adapters;
 
-import io.github.datakore.jsont.JsonTType;
-import io.github.datakore.jsont.io.JsonTWriter;
-
 import java.util.List;
 
-public interface SchemaAdapter<T extends JsonTType> {
+public interface SchemaAdapter<T> {
 
     String toSchemaDef();
 
@@ -14,8 +11,6 @@ public interface SchemaAdapter<T extends JsonTType> {
     Class<T> logicalType();
 
     T createTarget();
-
-    void writeObject(Object target, JsonTWriter writer);
 
     void set(Object target, String fieldName, Object valuee);
 

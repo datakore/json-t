@@ -1,17 +1,18 @@
 package io.github.datakore.jsont.execution;
 
-import io.github.datakore.jsont.grammar.data.RowNode;
-import io.github.datakore.jsont.grammar.schema.ast.SchemaModel;
+import io.github.datakore.jsont.errors.ValidationError;
 import reactor.core.publisher.Flux;
 
+import java.util.List;
+import java.util.Map;
+
 public interface DataStream {
-    void onRowParsed(RowNode row);
+    void onRowParsed(Map<String, Object> row);
 
     void onEOF();
 
-    Flux<RowNode> rows();
+    Flux<Map<String, Object>> rows();
 
-    SchemaModel getDataSchema();
 
-    void setDataSchema(String schema);
+    void onRowError(int rowIndex, List<ValidationError> errors);
 }

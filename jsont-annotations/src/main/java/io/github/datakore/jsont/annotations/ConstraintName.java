@@ -1,5 +1,7 @@
 package io.github.datakore.jsont.annotations;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 
 public enum ConstraintName {
@@ -13,12 +15,13 @@ public enum ConstraintName {
     MinItems("minItems"),
     MinVLength("minLength"),
     MandatoryField("required"),
-    Pattern(new String[]{"regex", "pattern"});
+    Pattern("regex", "pattern");
 
     private final Set<String> names;
 
     ConstraintName(String... strings) {
-        this.names = Set.of(strings);
+        this.names = new HashSet<>(strings.length);
+        this.names.addAll(Arrays.asList(strings));
     }
 
     public Set<String> getNames() {

@@ -5,12 +5,13 @@ import io.github.datakore.jsont.errors.ValidationError;
 import io.github.datakore.jsont.grammar.data.ArrayNode;
 import io.github.datakore.jsont.grammar.data.NullNode;
 import io.github.datakore.jsont.grammar.data.ValueNode;
-import io.github.datakore.jsont.grammar.schema.constraints.FieldConstraint;
+import io.github.datakore.jsont.grammar.schema.constraints.BaseConstraint;
 
-public class AllowNullElementsConstraint implements FieldConstraint {
+public class AllowNullElementsConstraint extends BaseConstraint {
     private final boolean allowNullElements;
 
-    public AllowNullElementsConstraint(boolean allowNullElements) {
+    public AllowNullElementsConstraint(ConstraitType constraint, boolean allowNullElements) {
+        super(constraint);
         this.allowNullElements = allowNullElements;
     }
 
@@ -41,5 +42,10 @@ public class AllowNullElementsConstraint implements FieldConstraint {
                                     .count()));
         }
         return null;
+    }
+
+    @Override
+    protected Object constraintValue() {
+        return this.allowNullElements;
     }
 }

@@ -16,6 +16,8 @@ import io.github.datakore.jsont.grammar.schema.constraints.text.MaxLengthConstra
 import io.github.datakore.jsont.grammar.schema.constraints.text.MinLengthConstraint;
 import io.github.datakore.jsont.grammar.schema.constraints.text.RegexPatternConstraint;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
@@ -43,7 +45,7 @@ public interface FieldConstraint {
         MaxItems("maxItems", MaxItemsConstraint.class),
         MinValue("minValue", MinValueConstraint.class),
         MinItems("minItems", MinItemsConstraint.class),
-        MinVLength("minLength", MinLengthConstraint.class),
+        MinLength("minLength", MinLengthConstraint.class),
         MandatoryField("required", MandatoryFieldConstraint.class),
         Pattern(new String[]{"regex", "pattern"}, RegexPatternConstraint.class);
 
@@ -51,13 +53,19 @@ public interface FieldConstraint {
         private final Class<? extends FieldConstraint> type;
 
         ConstraitType(String identifier, Class<? extends FieldConstraint> clazz) {
-            this.identifier = Set.of(identifier);
+            this.identifier = new HashSet<>();
+            this.identifier.add(identifier);
             this.type = clazz;
         }
 
         ConstraitType(String[] identifier, Class<? extends FieldConstraint> clazz) {
-            this.identifier = Set.of(identifier);
+            this.identifier = new HashSet<>();
+            this.identifier.addAll(Arrays.asList(identifier));
             this.type = clazz;
+        }
+
+        public Set<String> getIdentifier() {
+            return identifier;
         }
     }
 }

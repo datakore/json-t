@@ -4,14 +4,15 @@ import io.github.datakore.jsont.errors.ErrorLocation;
 import io.github.datakore.jsont.errors.ValidationError;
 import io.github.datakore.jsont.grammar.data.ScalarNode;
 import io.github.datakore.jsont.grammar.data.ValueNode;
-import io.github.datakore.jsont.grammar.schema.constraints.FieldConstraint;
+import io.github.datakore.jsont.grammar.schema.constraints.BaseConstraint;
 
 import java.math.BigDecimal;
 
-public class MaxPrecisionConstraint implements FieldConstraint {
+public class MaxPrecisionConstraint extends BaseConstraint {
     private final int maxPrecision;
 
-    public MaxPrecisionConstraint(int maxPrecision) {
+    public MaxPrecisionConstraint(ConstraitType constraitType, int maxPrecision) {
+        super(constraitType);
         this.maxPrecision = maxPrecision;
     }
 
@@ -41,5 +42,10 @@ public class MaxPrecisionConstraint implements FieldConstraint {
                     scalarNode.raw());
         }
         return null;
+    }
+
+    @Override
+    protected Object constraintValue() {
+        return this.maxPrecision;
     }
 }

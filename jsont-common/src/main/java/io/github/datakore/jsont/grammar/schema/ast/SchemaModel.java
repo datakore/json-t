@@ -1,12 +1,11 @@
 package io.github.datakore.jsont.grammar.schema.ast;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 public final class SchemaModel {
-
     private final String name;
     private final List<FieldModel> fields;
-    private Class<?> targetClass;
 
     public SchemaModel(String name, List<FieldModel> fields) {
         this.name = name;
@@ -25,11 +24,42 @@ public final class SchemaModel {
         return fields == null ? 0 : fields.size();
     }
 
-    public void bindTargetClass(Class<?> targetClass) {
-        this.targetClass = targetClass;
+    public List<String> referencedTypes() {
+        return this.fields.stream()
+                .filter(f -> f.getFieldType().isObject())
+                .map(f -> f.getFieldType().type())
+                .collect(Collectors.toList());
     }
 
-    public Class<?> getTargetClass() {
-        return targetClass;
+    public List<String> referencedEnums() {
+        return this.fields.stream()
+                .filter(f -> f.getFieldType().isEnum())
+                .map(f -> f.getFieldType().type())
+                .collect(Collectors.toList());
     }
+
+    @Override
+    public String toString() {
+        /**
+         * User: {
+         *             i32: id,
+         *             str: username?(minLength=5,maxLength='10'),
+         *             str: email?(minLength=8)
+         *           }
+         */
+        StringBuilder sb = new StringBuilder();
+        sb.append(name);
+        sb.append(": {");
+        StringBuilder values = new StringBuilder();
+        for (FieldModel value : fields) {
+            if (values.length() > 0) {
+                values.append(",");
+            }
+            values.append(value);
+        }
+        sb.append(values);
+        sb.append("}");
+        return sb.toString();
+    }
+
 }

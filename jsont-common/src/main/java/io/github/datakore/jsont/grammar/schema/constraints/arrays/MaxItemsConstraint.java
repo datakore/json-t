@@ -4,12 +4,13 @@ import io.github.datakore.jsont.errors.ErrorLocation;
 import io.github.datakore.jsont.errors.ValidationError;
 import io.github.datakore.jsont.grammar.data.ArrayNode;
 import io.github.datakore.jsont.grammar.data.ValueNode;
-import io.github.datakore.jsont.grammar.schema.constraints.FieldConstraint;
+import io.github.datakore.jsont.grammar.schema.constraints.BaseConstraint;
 
-public class MaxItemsConstraint implements FieldConstraint {
+public class MaxItemsConstraint extends BaseConstraint {
     private final int maxItems;
 
-    public MaxItemsConstraint(int maxItems) {
+    public MaxItemsConstraint(ConstraitType constraitType, int maxItems) {
+        super(constraitType);
         this.maxItems = maxItems;
     }
 
@@ -34,5 +35,10 @@ public class MaxItemsConstraint implements FieldConstraint {
                     String.valueOf(arrayNode.elements().size()));
         }
         return null;
+    }
+
+    @Override
+    protected Object constraintValue() {
+        return this.maxItems;
     }
 }

@@ -4,21 +4,19 @@ import io.github.datakore.jsont.errors.ErrorLocation;
 import io.github.datakore.jsont.errors.ValidationError;
 import io.github.datakore.jsont.grammar.data.NullNode;
 import io.github.datakore.jsont.grammar.data.ValueNode;
-import io.github.datakore.jsont.grammar.schema.constraints.FieldConstraint;
+import io.github.datakore.jsont.grammar.schema.constraints.BaseConstraint;
 
-public class MandatoryFieldConstraint implements FieldConstraint {
+public class MandatoryFieldConstraint extends BaseConstraint {
     private final boolean mandatory;
 
-    public MandatoryFieldConstraint(boolean mandatory) {
+    public MandatoryFieldConstraint(ConstraitType constraitType, boolean mandatory) {
+        super(constraitType);
         this.mandatory = mandatory;
     }
 
     @Override
     public boolean checkConstraint(ValueNode node) {
-        if (mandatory && node instanceof NullNode) {
-            return false;
-        }
-        return true;
+        return !mandatory || !(node instanceof NullNode);
     }
 
     @Override
@@ -29,5 +27,10 @@ public class MandatoryFieldConstraint implements FieldConstraint {
                 "Mandatory field is null",
                 "non-null",
                 "null");
+    }
+
+    @Override
+    protected Object constraintValue() {
+        return this.mandatory;
     }
 }

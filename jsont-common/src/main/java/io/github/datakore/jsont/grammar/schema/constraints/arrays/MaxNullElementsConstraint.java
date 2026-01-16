@@ -5,12 +5,13 @@ import io.github.datakore.jsont.errors.ValidationError;
 import io.github.datakore.jsont.grammar.data.ArrayNode;
 import io.github.datakore.jsont.grammar.data.NullNode;
 import io.github.datakore.jsont.grammar.data.ValueNode;
-import io.github.datakore.jsont.grammar.schema.constraints.FieldConstraint;
+import io.github.datakore.jsont.grammar.schema.constraints.BaseConstraint;
 
-public class MaxNullElementsConstraint implements FieldConstraint {
+public class MaxNullElementsConstraint extends BaseConstraint {
     private final int maxNullElements;
 
-    public MaxNullElementsConstraint(int maxNullElements) {
+    public MaxNullElementsConstraint(ConstraitType constraitType, int maxNullElements) {
+        super(constraitType);
         this.maxNullElements = maxNullElements;
     }
 
@@ -38,5 +39,10 @@ public class MaxNullElementsConstraint implements FieldConstraint {
                                     .count()));
         }
         return null;
+    }
+
+    @Override
+    protected Object constraintValue() {
+        return this.maxNullElements;
     }
 }

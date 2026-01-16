@@ -6,47 +6,71 @@ import io.github.datakore.jsont.grammar.types.ValueType;
 import java.util.List;
 
 public final class FieldModel {
-    private final int position;
-    private final String name;
-    private final ValueType type;
-    private final boolean optional;
-    private final boolean arrays;
+    private final int fieldIndex;
+    private final String fieldName;
+    private final ValueType fieldType;
+    private final boolean fieldOptional;
     private final List<FieldConstraint> constraints;
+    private final String schemaName;
 
-    public FieldModel(
-            int position, String name, ValueType type, boolean optional, boolean arrays,
-            List<FieldConstraint> constraints
-    ) {
-        this.position = position;
-        this.name = name;
-        this.type = type;
-        this.optional = optional;
-        this.arrays = arrays;
+    public FieldModel(String schemaName, int position, String fieldName, ValueType fieldType, boolean fieldOptional,
+                      List<FieldConstraint> constraints) {
+        this.schemaName = schemaName;
+        this.fieldIndex = position;
+        this.fieldName = fieldName;
+        this.fieldType = fieldType;
+        this.fieldOptional = fieldOptional;
         this.constraints = constraints;
     }
 
-    public int position() {
-        return position;
+    public String getSchema() {
+        return schemaName;
     }
 
-    public String name() {
-        return name;
+    public int getFieldIndex() {
+        return fieldIndex;
     }
 
-    public boolean optional() {
-        return optional;
+    public String getFieldName() {
+        return fieldName;
     }
 
-    public boolean arrays() {
-        return arrays;
+    public ValueType getFieldType() {
+        return fieldType;
     }
 
-    public List<FieldConstraint> constraints() {
+    public boolean isFieldOptional() {
+        return fieldOptional;
+    }
+
+    public List<FieldConstraint> getConstraints() {
         return constraints;
     }
 
-    public ValueType type() {
-        return type;
+    @Override
+    public String toString() {
+        /**
+         * str: username?(minLength=5,maxLength='10')
+         */
+        StringBuilder sb = new StringBuilder();
+        sb.append(fieldType);
+        sb.append(": ");
+        sb.append(fieldName);
+        if (fieldOptional) {
+            sb.append("?");
+        }
+        if (constraints != null && !constraints.isEmpty()) {
+            sb.append("(");
+            StringBuilder values = new StringBuilder();
+            for (FieldConstraint value : constraints) {
+                if (values.length() > 0) {
+                    values.append(",");
+                }
+                values.append(value);
+            }
+            sb.append(values);
+            sb.append(")");
+        }
+        return sb.toString();
     }
-
 }

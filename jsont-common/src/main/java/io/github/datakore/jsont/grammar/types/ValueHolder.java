@@ -19,6 +19,6 @@ public class ValueHolder {
     }
 
     public void validate() {
-        valueType.validate(value);
+        // valueType.validate(value);
     }
 }

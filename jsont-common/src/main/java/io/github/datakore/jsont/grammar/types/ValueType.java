@@ -1,51 +1,19 @@
 package io.github.datakore.jsont.grammar.types;
 
-import io.github.datakore.jsont.grammar.data.JsontScalarType;
+import io.github.datakore.jsont.grammar.data.ValueNodeKind;
 
 public interface ValueType {
-    /**
-     * Human-readable name (int, string, Address, Address[], etc.)
-     */
-    String name();
+    String fieldName();
 
-    JsontScalarType valueType();
+    int colPosition();
 
-    /**
-     * Entry point for validation.
-     * Called exactly once per field value.
-     */
-    default void validate(Object raw) {
-        checkNullability(raw);
-        validateShape(raw);
-        validateConstraints(raw);
-    }
+    String type();
 
-    /**
-     * Whether null is allowed.
-     */
-    boolean isOptional();
+    ValueNodeKind nodeKind();
 
-    void setOptional(boolean b);
+    boolean isObject();
 
-    /**
-     * Null / presence check.
-     */
-    default void checkNullability(Object raw) {
-        if (raw == null && !isOptional()) {
-            throw new IllegalArgumentException(
-                    "Null value not allowed for type " + name());
-        }
-    }
+    boolean isArray();
 
-    /**
-     * Structural validation (scalar / array / object).
-     */
-    void validateShape(Object raw);
-
-    /**
-     * Constraint validation (min, max, pattern, etc.).
-     */
-    default void validateConstraints(Object raw) {
-        // no-op by default
-    }
+    boolean isEnum();
 }

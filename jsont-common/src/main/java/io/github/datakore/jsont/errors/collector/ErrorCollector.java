@@ -10,4 +10,6 @@ public interface ErrorCollector {
     boolean hasFatalErrors();
 
     List<ValidationError> all();
+
+    void clearErrors();
 }

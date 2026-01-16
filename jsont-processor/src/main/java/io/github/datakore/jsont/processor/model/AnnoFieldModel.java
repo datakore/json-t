@@ -14,6 +14,7 @@ public final class AnnoFieldModel {
     private String declaredType;
     private String getterMethod;
     private String setterMethod;
+
     public AnnoFieldModel(String fieldProperty, String fieldNameInSchema, String declaredType, String fieldType, boolean array, boolean optional) {
         this.fieldProperty = fieldProperty;
         this.fieldNameInSchema = fieldNameInSchema;

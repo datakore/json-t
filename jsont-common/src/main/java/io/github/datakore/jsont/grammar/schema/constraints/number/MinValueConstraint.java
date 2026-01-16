@@ -4,12 +4,13 @@ import io.github.datakore.jsont.errors.ErrorLocation;
 import io.github.datakore.jsont.errors.ValidationError;
 import io.github.datakore.jsont.grammar.data.ScalarNode;
 import io.github.datakore.jsont.grammar.data.ValueNode;
-import io.github.datakore.jsont.grammar.schema.constraints.FieldConstraint;
+import io.github.datakore.jsont.grammar.schema.constraints.BaseConstraint;
 
-public class MinValueConstraint implements FieldConstraint {
+public class MinValueConstraint extends BaseConstraint {
     private final double minValue;
 
-    public MinValueConstraint(double minValue) {
+    public MinValueConstraint(ConstraitType constraitType, double minValue) {
+        super(constraitType);
         this.minValue = minValue;
     }
 
@@ -34,5 +35,10 @@ public class MinValueConstraint implements FieldConstraint {
                     scalarNode.raw());
         }
         return null;
+    }
+
+    @Override
+    protected Object constraintValue() {
+        return this.minValue;
     }
 }

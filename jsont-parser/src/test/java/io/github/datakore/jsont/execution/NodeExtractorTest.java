@@ -1,81 +1,77 @@
 package io.github.datakore.jsont.execution;
 
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.tree.ParseTree;
+import io.github.datakore.jsont.errors.ValidationError;
 import io.github.datakore.jsont.errors.collector.DefaultErrorCollector;
 import io.github.datakore.jsont.errors.collector.ErrorCollector;
-import io.github.datakore.jsont.grammar.JsonTParser;
-import io.github.datakore.jsont.grammar.data.RowNode;
-import io.github.datakore.jsont.grammar.schema.ast.SchemaModel;
+import io.github.datakore.jsont.grammar.schema.ast.NamespaceT;
+import io.github.datakore.jsont.parser.DataRowVisitor;
+import io.github.datakore.jsont.parser.SchemaCatalogVisitor;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NodeExtractorTest {
 
     @Test
     void shouldParseCatalog() throws IOException {
-        CharStream schemaStream = CharStreams.fromPath(Path.of("src/test/resources/example.jsont"));
+        CharStream schemaStream = CharStreams.fromPath(Path.of("src/test/resources/ns-schema.jsont"));
         ErrorCollector errorCollector = new DefaultErrorCollector();
-        JsonTParser parser = ParserUtil.createParser(schemaStream, errorCollector);
-        SchemaCatalogVisitor visitor = new SchemaCatalogVisitor();
-        JsonTNode jsonTDef = (JsonTNode) visitor.visitCatalog(parser.catalog());
-        assertEquals(2, jsonTDef.getSchemaNodeList().size());
-        assertEquals(1, jsonTDef.getEnumDefs().size());
+        SchemaCatalogVisitor visitor = new SchemaCatalogVisitor(errorCollector);
+        ParserExecutor.executeSchema(schemaStream, errorCollector, visitor);
+        NamespaceT ns = visitor.getNamespaceT();
+        assertEquals(0, errorCollector.all().size());
+        assertFalse(errorCollector.hasFatalErrors());
+        assertEquals(1, ns.getCatalogs().size());
+        assertNotNull(ns.getCatalogs().get(0).getSchema("User"));
+        assertNotNull(ns.getCatalogs().get(0).getSchema("Address"));
+        assertNotNull(ns.getCatalogs().get(0).getEnum("Role"));
     }
 
     @Test
     void shouldParseData() throws IOException {
-        CharStream schemaStream = CharStreams.fromPath(Path.of("src/test/resources/example.jsont"));
+        CharStream schemaStream = CharStreams.fromPath(Path.of("src/test/resources/data.jsont"));
         ErrorCollector errorCollector = new DefaultErrorCollector();
-        JsonTParser parser = ParserUtil.createParser(schemaStream, errorCollector);
-        TestDataStream stream = new TestDataStream();
-        DataRowVisitor visitor = new DataRowVisitor(stream);
-        ParseTree tree = parser.jsonT();
-        visitor.visit(tree);
-        assertEquals(2, stream.getRows().size());
-        assertEquals("User", stream.getDataSchema().name());
+        final AtomicInteger rowsReceived = new AtomicInteger();
+        final AtomicInteger errorsReceived = new AtomicInteger();
+        DataStream dataStream = new DataStream() {
+            @Override
+            public void onRowParsed(Map<String, Object> row) {
+                rowsReceived.incrementAndGet();
+            }
+
+            @Override
+            public void onEOF() {
+
+            }
+
+            @Override
+            public Flux<Map<String, Object>> rows() {
+                return null;
+            }
+
+            @Override
+            public void onRowError(int rowIndex, List<ValidationError> errors) {
+                errorsReceived.incrementAndGet();
+            }
+        };
+        DataRowVisitor visitor = new DataRowVisitor(errorCollector, null, dataStream);
+        ParserExecutor.executeDataParse(schemaStream, errorCollector, visitor);
+        NamespaceT ns = visitor.getNamespaceT();
+        assertEquals(0, errorCollector.all().size());
+        assertFalse(errorCollector.hasFatalErrors());
+        assertEquals(1, ns.getCatalogs().size());
+        assertNotNull(ns.getCatalogs().get(0).getSchema("User"));
+        assertNotNull(ns.getCatalogs().get(0).getSchema("Address"));
+        assertNotNull(ns.getCatalogs().get(0).getEnum("Role"));
     }
-
-    class TestDataStream implements DataStream {
-        List<RowNode> rows = new ArrayList<>();
-        private SchemaModel schemaModel;
-
-        public List<RowNode> getRows() {
-            return rows;
-        }
-
-        @Override
-        public void onRowParsed(RowNode row) {
-            this.rows.add(row);
-        }
-
-        @Override
-        public void onEOF() {
-            System.out.println("Processed " + this.rows.size() + " records");
-        }
-
-        @Override
-        public Flux<RowNode> rows() {
-            return null;
-        }
-
-        @Override
-        public SchemaModel getDataSchema() {
-            return this.schemaModel;
-        }
-
-        @Override
-        public void setDataSchema(String schema) {
-            this.schemaModel = new SchemaModel(schema, List.of());
-        }
-    }
-
 }
+

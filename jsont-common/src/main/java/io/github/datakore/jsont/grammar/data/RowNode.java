@@ -4,9 +4,9 @@ import java.util.Map;
 
 public class RowNode implements ValueNode {
     private final int index; // row number (0-based)
-    private final Map<String, ValueNode> nodeMap; // positional values
+    private final Map<String, Object> nodeMap; // positional values
 
-    public RowNode(int index, Map<String, ValueNode> values) {
+    public RowNode(int index, Map<String, Object> values) {
         this.index = index;
         this.nodeMap = values;
     }
@@ -15,7 +15,7 @@ public class RowNode implements ValueNode {
         return index;
     }
 
-    public Map<String, ValueNode> getNodeMap() {
+    public Map<String, Object> getNodeMap() {
         return nodeMap;
     }
 
@@ -23,7 +23,7 @@ public class RowNode implements ValueNode {
         return index;
     }
 
-    public Map<String, ValueNode> values() {
+    public Map<String, Object> values() {
         return nodeMap;
     }
 

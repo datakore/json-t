@@ -1,12 +1,12 @@
 package io.github.datakore.jsont.listener;
 
-import org.antlr.v4.runtime.BaseErrorListener;
-import org.antlr.v4.runtime.RecognitionException;
-import org.antlr.v4.runtime.Recognizer;
 import io.github.datakore.jsont.errors.ErrorLocation;
 import io.github.datakore.jsont.errors.Severity;
 import io.github.datakore.jsont.errors.ValidationError;
 import io.github.datakore.jsont.errors.collector.ErrorCollector;
+import org.antlr.v4.runtime.BaseErrorListener;
+import org.antlr.v4.runtime.RecognitionException;
+import org.antlr.v4.runtime.Recognizer;
 
 public class JsonTErrorListener extends BaseErrorListener {
     private final ErrorCollector errorCollector;
@@ -22,7 +22,7 @@ public class JsonTErrorListener extends BaseErrorListener {
     ) {
         errorCollector.report(new ValidationError(
                 Severity.FATAL, String.format("Syntax error at line %d : %d - %s", line, charPositionInLine, msg),
-                ErrorLocation.withCell(line, charPositionInLine)
+                new ErrorLocation(line, charPositionInLine, e.getCtx().toString(), e.getOffendingToken().toString())
         ));
     }
 }

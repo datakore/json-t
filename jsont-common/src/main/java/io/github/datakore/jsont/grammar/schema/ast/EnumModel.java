@@ -27,4 +27,24 @@ public class EnumModel {
     public Set<String> values() {
         return enumValues;
     }
+
+    @Override
+    public String toString() {
+        /**
+         * Status: [ ACTIVE, INACTIVE, SUSPENDED ]
+         */
+        StringBuilder sb = new StringBuilder();
+        sb.append(enumName);
+        sb.append(": [");
+        StringBuilder values = new StringBuilder();
+        for (String value : enumValues) {
+            if (values.length() > 0) {
+                values.append(",");
+            }
+            values.append(value);
+        }
+        sb.append(values);
+        sb.append("]");
+        return sb.toString();
+    }
 }

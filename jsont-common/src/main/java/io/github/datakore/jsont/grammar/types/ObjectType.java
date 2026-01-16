@@ -1,90 +1,43 @@
 package io.github.datakore.jsont.grammar.types;
 
-import io.github.datakore.jsont.grammar.data.JsontScalarType;
-import io.github.datakore.jsont.grammar.data.RowNode;
+import io.github.datakore.jsont.grammar.data.ValueNodeKind;
+import io.github.datakore.jsont.grammar.schema.ast.SchemaModel;
 
-import java.util.Objects;
+public class ObjectType extends BaseType {
 
-public class ObjectType implements ValueType {
-    private final String schema;
-    private boolean optional;
+    private final int col;
+    private final String fieldName;
+    private final SchemaModel schema;
 
-    public ObjectType(String schema, boolean optional) {
+    public ObjectType(int col, String fieldName, SchemaModel schema) {
         this.schema = schema;
-        this.optional = optional;
-    }
-
-    public String schema() {
-        return schema;
+        this.col = col;
+        this.fieldName = fieldName;
     }
 
     @Override
-    public String name() {
-        return "<" + schema + ">";
+    public String fieldName() {
+        return fieldName;
     }
 
     @Override
-    public JsontScalarType valueType() {
-        return JsontScalarType.OBJECT;
+    public int colPosition() {
+        return col;
     }
 
     @Override
-    public boolean isOptional() {
-        return optional;
+    public String type() {
+        return schema.name();
     }
 
     @Override
-    public void setOptional(boolean b) {
-        this.optional = b;
-    }
-
-    /**
-     * Structural validation only.
-     * Ensures the raw value is an object-shaped row.
-     */
-    @Override
-    public void validateShape(Object raw) {
-        if (raw == null) {
-            return; // nullability handled in ValueType.validate()
-        }
-        Object value = null;
-        if (raw instanceof RowNode) {
-            value = raw;
-        } else if (raw instanceof ValueHolder) {
-            value = ((ValueHolder) raw).value();
-        }
-
-        if (value != null && !(value instanceof RowNode)) {
-            throw new IllegalArgumentException(
-                    "Expected object value (RowNode) for type " + name()
-            );
-        }
-    }
-
-    /**
-     * Object-level constraints (rare).
-     * Usually empty.
-     */
-    @Override
-    public void validateConstraints(Object raw) {
-        // no-op by default
-        // example: object-level invariants if needed
+    public ValueNodeKind nodeKind() {
+        return ValueNodeKind.OBJECT;
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (null == obj || !(obj instanceof ObjectType)) {
-            return false;
-        } else if (this == obj) {
-            return true;
-        } else {
-            ObjectType that = (ObjectType) obj;
-            return Objects.equals(this.schema, that.schema) && this.optional == that.optional;
-        }
+    public boolean isObject() {
+        return true;
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(schema, optional);
-    }
 }
