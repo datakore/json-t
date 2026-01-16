@@ -30,10 +30,6 @@ public class AddressAdapter implements SchemaAdapter<Address> {
         return new Address();
     }
 
-    @Override
-    public void writeObject(Object target, JsonTWriter writer) {
-
-    }
 
     @Override
     public void set(Object target, String fieldName, Object value) {

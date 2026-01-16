@@ -37,10 +37,6 @@ public class UserAdapter implements SchemaAdapter<User> {
         return new User();
     }
 
-    @Override
-    public void writeObject(Object target, JsonTWriter writer) {
-
-    }
 
     @Override
     public void set(Object target, String fieldName, Object value) {

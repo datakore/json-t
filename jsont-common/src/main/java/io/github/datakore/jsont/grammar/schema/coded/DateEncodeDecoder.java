@@ -19,7 +19,6 @@ public class DateEncodeDecoder implements EncodeDecoder {
     final DateTimeFormatter yyyyMMdd = DateTimeFormatter.ofPattern("yyyyMMdd");
     final DateTimeFormatter yyyyMMddHHmmss = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     final DateTimeFormatter HHmmss = DateTimeFormatter.ofPattern("HHmmss");
-    final String[] trueValues = new String[]{"Yes", "1", "y", "true"};
     final DateTimeFormatter yyyyMMddTHHmmss = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
     final DateTimeFormatter yyyyMMddTHHmmssZ = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"); //YYYY-MM-DDTHH:mm:ssZ
     final DateTimeFormatter yyyyMMddTHHmmssPlusHHmm = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss±HH:mm"); //YYYY-MM-DDTHH:mm:ss±HH:mm
