@@ -6,10 +6,18 @@
     <parent>
         <groupId>io.github.datakore</groupId>
         <artifactId>jsont-parent</artifactId>
-        <version>0.0.1</version>
+        <version>0.0.2-SNAPSHOT</version>
     </parent>
 
     <artifactId>jsont-adapters-api</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.datakore</groupId>
+            <artifactId>jsont-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
 
 
 </project>

@@ -1,6 +1,7 @@
 # Getting Started with JsonT
 
-JsonT is a high-performance, compact data exchange format. It separates schema definitions from the data rows to reduce redundancy and improve parsing speed.
+JsonT is a high-performance, compact data exchange format. It separates schema definitions from the data rows to reduce
+redundancy and improve parsing speed.
 
 ## Requirements
 
@@ -26,8 +27,8 @@ Add the following to your `pom.xml`:
 The typical flow involves parsing a catalog (schema + enums) and then processing data rows against that context.
 
 ```java
-import org.jsont.JsonT;
-import org.jsont.core.JsonTContext;
+import io.github.datakore.jsont.JsonT;
+import core.io.github.datakore.jsont.JsonTContext;
 import org.antlr.v4.runtime.CharStreams;
 import java.nio.file.Path;
 import java.util.List;
@@ -93,15 +94,16 @@ ctx.withData(CharStreams.fromPath(Path.of("large-data.jsont")))
 
 ## Adapter Generation (AOT)
 
-JsonT uses Ahead-of-Time (AOT) source generation for maximum performance. Instead of using reflection at runtime, it generates efficient adapters for your POJOs.
+JsonT uses Ahead-of-Time (AOT) source generation for maximum performance. Instead of using reflection at runtime, it
+generates efficient adapters for your POJOs.
 
 ### Using `@JsonTSerializable`
 
 The easiest way to generate adapters is to annotate your model classes:
 
 ```java
-import org.jsont.annotations.JsonTSerializable;
-import org.jsont.annotations.JsonTField;
+import annotations.io.github.datakore.jsont.JsonTSerializable;
+import annotations.io.github.datakore.jsont.JsonTField;
 
 @JsonTSerializable(schema = "Customer")
 public class Customer {
@@ -117,10 +119,14 @@ public class Customer {
 
 ### How `AdapterGenerator` Works
 
-The `AdapterGenerator` is the engine behind this generation. During the build process, the `JsonTAOTProcessor` (annotation processor) identifies classes with `@JsonTSerializable` and uses `AdapterGenerator` to produce a `*SchemaAdapter.java` source file.
+The `AdapterGenerator` is the engine behind this generation. During the build process, the `JsonTAOTProcessor` (
+annotation processor) identifies classes with `@JsonTSerializable` and uses `AdapterGenerator` to produce a
+`*SchemaAdapter.java` source file.
 
-- **Automated Usage**: Simply include `jsont-processor` in your annotation processor path. The generator will create adapters automatically during compilation.
-- **Manual Usage**: While not common, `AdapterGenerator.generate(AnnoTypeModel, Filer, Elements)` can be called programmatically if you are building custom tooling to generate adapters from non-Java schema sources.
+- **Automated Usage**: Simply include `jsont-processor` in your annotation processor path. The generator will create
+  adapters automatically during compilation.
+- **Manual Usage**: While not common, `AdapterGenerator.generate(AnnoTypeModel, Filer, Elements)` can be called
+  programmatically if you are building custom tooling to generate adapters from non-Java schema sources.
 
 ---
 
@@ -139,6 +145,7 @@ JsonTContext ctx = JsonT.builder()
 ## Error Handling
 
 JsonT provides validation and fails fast on:
+
 - Schema mismatches
 - Invalid enum values
 - Missing required fields

@@ -1,12 +1,15 @@
 # JSON-T
 
-**JSON-T** is a **schema-driven, positional data language** designed to reduce payload size and enforce strong, symmetric data validation — especially for **large datasets, batch APIs, and streaming use cases**.
+**JSON-T** is a **schema-driven, positional data language** designed to reduce payload size and enforce strong,
+symmetric data validation — especially for **large datasets, batch APIs, and streaming use cases**.
 
-Unlike JSON, where field names are repeated in every record, JSON-T defines structure once using a schema and encodes data as compact positional tuples.
+Unlike JSON, where field names are repeated in every record, JSON-T defines structure once using a schema and encodes
+data as compact positional tuples.
 
 ---
 
 ## Why JSON-T?
+
 JSON is flexible and human-readable, but it has well-known limitations at scale:
 
 * Repeated field names inflate payload size
@@ -76,7 +79,9 @@ The result is a data format that is:
 ## Quick Example
 
 ### Schema Definition
+
 Define your data structure once.
+
 ```jsont
 {
     schemas: {
@@ -97,7 +102,9 @@ Define your data structure once.
 ```
 
 ### Data Payload
+
 Transmit data as compact tuples.
+
 ```jsont
 {
 	data-schema: User,
@@ -115,6 +122,7 @@ Transmit data as compact tuples.
 JSON-T provides a Java API for parsing and generating data.
 
 ### Add maven repository
+
 ```xml
 <repositories>
     <repository>
@@ -125,6 +133,7 @@ JSON-T provides a Java API for parsing and generating data.
 ```
 
 ### Maven Dependency
+
 ```xml
 <dependency>
     <groupId>io.github.datakore</groupId>
@@ -134,6 +143,7 @@ JSON-T provides a Java API for parsing and generating data.
 ```
 
 ### Reading Data (Async as Stream) - Use this approach as a default mechanism (or) specifically while handling large batches
+
 ```java
 	@Test
     void shouldReadDataAsStream() throws IOException {
@@ -152,6 +162,7 @@ JSON-T provides a Java API for parsing and generating data.
 ```
 
 ### Reading Data (Synchronous as List) - Use this approach for smaller payloads
+
 ```java
 	@Test
     void shouldReadDataAsList() throws IOException {
@@ -168,6 +179,7 @@ JSON-T provides a Java API for parsing and generating data.
 ```
 
 ### Writing Data
+
 ```java
 JsonTContext ctx = JsonT.builder()
         .withAdapter(new AddressAdapter())
@@ -215,24 +227,37 @@ If a document parses successfully, it is structurally valid.
 🚧 **Work in progress**
 
 🚀 Current Development Status
+
 - We are currently focused on hardening the core engine and expanding the developer experience:
-- Granular State Management: Implementing an unspecified terminal to distinguish between a field being explicitly set to null versus a value remaining unchanged.
-- Performance Engineering: The Java implementation currently handles 750k records in stream mode with high efficiency. We are currently optimizing the engine to breach the 1 million record threshold without performance degradation.
-- Annotation Processing: Finalizing the Adapter annotation processing templates to allow seamless integration with custom application POJOs and frameworks.
+- Granular State Management: Implementing an unspecified terminal to distinguish between a field being explicitly set to
+  null versus a value remaining unchanged.
+- Performance Engineering: The Java implementation currently handles 750k records in stream mode with high efficiency.
+  We are currently optimizing the engine to breach the 1 million record threshold without performance degradation.
+- Annotation Processing: Finalizing the Adapter annotation processing templates to allow seamless integration with
+  custom application POJOs and frameworks.
 
 🗺️ Future Roadmap
+
 - The vision for JsonT is to become a cross-language standard for efficient data transformation:
-- Tooling & IDE Support: * Development of a formal TextMate Grammar to provide high-quality syntax highlighting across VS Code, Sublime Text, and GitHub.
-- Validation Layer: Integrated constraint validation during both read and write cycles to ensure data integrity at the edge.
-- Multi-Language Support: First-class implementations for Rust (high-performance systems) and TypeScript (web/node.js) to enable a truly universal data stack.
-- Interoperability: Bidirectional converters for JSON ↔ JSON-T and support for other major data serialization formats like YAML and MessagePack.
+- Tooling & IDE Support: * Development of a formal TextMate Grammar to provide high-quality syntax highlighting across
+  VS Code, Sublime Text, and GitHub.
+- Validation Layer: Integrated constraint validation during both read and write cycles to ensure data integrity at the
+  edge.
+- Multi-Language Support: First-class implementations for Rust (high-performance systems) and TypeScript (web/node.js)
+  to enable a truly universal data stack.
+- Interoperability: Bidirectional converters for JSON ↔ JSON-T and support for other major data serialization formats
+  like YAML and MessagePack.
 
 🤝 Seeking Contributors & Support
-JsonT is an ambitious project aimed at redefining data density and validation. We are looking for collaborators to help accelerate growth in these specific areas:
+JsonT is an ambitious project aimed at redefining data density and validation. We are looking for collaborators to help
+accelerate growth in these specific areas:
 
-1. Grammar & Tooling: If you have experience with TextMate grammars or Language Server Protocol (LSP), we need your help building the developer experience for the next generation of data tools.
-2. Language Ports: Expert Rust or TypeScript developers are needed to help port the core grammar logic, ensuring JsonT is available wherever performance matters.
-3. Benchmarking & Optimization: Help us profile the engine as we push toward (and beyond) the 1-million-record streaming milestone in Java
+1. Grammar & Tooling: If you have experience with TextMate grammars or Language Server Protocol (LSP), we need your help
+   building the developer experience for the next generation of data tools.
+2. Language Ports: Expert Rust or TypeScript developers are needed to help port the core grammar logic, ensuring JsonT
+   is available wherever performance matters.
+3. Benchmarking & Optimization: Help us profile the engine as we push toward (and beyond) the 1-million-record streaming
+   milestone in Java
 
 ---
 
