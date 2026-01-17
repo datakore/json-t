@@ -7,20 +7,6 @@ import java.util.List;
 
 public class AddressAdapter implements SchemaAdapter<Address> {
     @Override
-    public String toSchemaDef() {
-        return "Address: {\n" +
-                "            str: street,\n" +
-                "            str: city,\n" +
-                "            zip: zipCode\n" +
-                "        }";
-    }
-
-    @Override
-    public List<Class<?>> childrenTypes() {
-        return List.of();
-    }
-
-    @Override
     public Class<Address> logicalType() {
         return Address.class;
     }
@@ -35,8 +21,8 @@ public class AddressAdapter implements SchemaAdapter<Address> {
     public void set(Object target, String fieldName, Object value) {
         Address address = (Address) target;
         switch (fieldName) {
-            case "street":
-                address.setStreet((String) value);
+            case "status":
+                address.setStatus((String) value);
                 break;
             case "zipCode":
                 address.setZipCode((String) value);
@@ -51,8 +37,8 @@ public class AddressAdapter implements SchemaAdapter<Address> {
     public Object get(Object target, String fieldName) {
         Address address = (Address) target;
         switch (fieldName) {
-            case "street":
-                return address.getStreet();
+            case "status":
+                return address.getStatus();
             case "zipCode":
                 return address.getZipCode();
             case "city":

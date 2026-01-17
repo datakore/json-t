@@ -14,27 +14,23 @@ import java.util.*;
 
 public class JsonTStringify {
     private final AdapterRegistry registry;
-    private final SchemaCatalog catalog;
     private final BooleanEncodeDecoder booleanEncoder = new BooleanEncodeDecoder();
     private final StringEncodeDecoder stringEncoder = new StringEncodeDecoder();
     private final NumberEncodeDecoder numberEncoder = new NumberEncodeDecoder();
     private final DateEncodeDecoder dateEncoder = new DateEncodeDecoder();
     private final BinaryEncodeDecoder binEncoder = new BinaryEncodeDecoder();
+    private final NamespaceT namespace;
 
-    public JsonTStringify(AdapterRegistry registry, SchemaCatalog catalog) {
-        this.catalog = catalog;
+    public JsonTStringify(AdapterRegistry registry, NamespaceT namespaceT) {
+        this.namespace = namespaceT;
         this.registry = registry;
     }
 
     public <T> String stringifySchema(Class<T> type) {
-        SchemaModel schema = catalog.resolveSchema(type.getSimpleName());
+        SchemaModel schema = namespace.findSchema(type.getSimpleName());
         if (schema == null) {
             return "";
         }
-        Set<String> schemas = new HashSet<>();
-        schemas.addAll(findSchemasOf(type.getSimpleName()));
-        Set<String> enums = new HashSet<>();
-        enums.addAll(findEnumsOf(type.getSimpleName()));
         URL baseUrl = null;
         try {
             baseUrl = new URL("https://datakore.github.io");
@@ -42,34 +38,46 @@ public class JsonTStringify {
             //
         }
         NamespaceT ns = new NamespaceT(baseUrl);
-        SchemaCatalog newCatalog = new SchemaCatalog();
-        schemas.forEach(s -> {
-            SchemaModel schema1 = catalog.getSchema(s);
-            newCatalog.addSchema(schema1);
-        });
-        enums.forEach(e -> {
-            EnumModel enumModel = catalog.getEnum(e);
-            newCatalog.addEnum(e, enumModel);
-        });
+        SchemaCatalog newCatalog = findRelevantCatalog(type.getSimpleName());
         ns.addCatalog(newCatalog);
         return ns.toString();
     }
 
+    private SchemaCatalog findRelevantCatalog(String schemaName) {
+        Set<String> schemas = new HashSet<>();
+        schemas.addAll(findSchemasOf(schemaName));
+        Set<String> enums = new HashSet<>();
+        SchemaCatalog newCatalog = new SchemaCatalog();
+        schemas.forEach(s -> {
+            SchemaModel schema1 = namespace.findSchema(s);
+            if (schema1 != null) {
+                enums.addAll(findEnumsOf(schema1.name()));
+                newCatalog.addSchema(schema1);
+            }
+        });
+        enums.forEach(e -> {
+            EnumModel enumModel = namespace.findEnum(e);
+            if (enumModel != null) {
+                newCatalog.addEnum(e, enumModel);
+            }
+        });
+        return newCatalog;
+    }
+
     private List<String> findEnumsOf(String simpleName) {
-        SchemaModel schema = catalog.getSchema(simpleName);
+        SchemaModel schema = namespace.findSchema(simpleName);
         if (schema != null) {
             List<String> types = schema.referencedEnums();
-            schema.referencedTypes().forEach(t -> types.addAll(findEnumsOf(t)));
             return types;
         }
         return Collections.emptyList();
     }
 
-    private List<String> findSchemasOf(String simpleName) {
-        SchemaModel schema = catalog.getSchema(simpleName);
+    private List<String> findSchemasOf(String schemaName) {
+        SchemaModel schema = namespace.findSchema(schemaName);
         if (schema != null) {
             List<String> types = new ArrayList<>();
-            types.add(simpleName);
+            types.add(schemaName);
             schema.referencedTypes().forEach(t -> types.addAll(findSchemasOf(t)));
             return types;
         }
@@ -81,7 +89,7 @@ public class JsonTStringify {
             return "";
         }
         String schemaName = listObject.get(0).getClass().getSimpleName();
-        SchemaModel schema = catalog.getSchema(schemaName);
+        SchemaModel schema = namespace.findSchema(schemaName);
         if (schema == null) {
             throw new SchemaException("Data schema not found, please supply a valid catalog/schema");
         }
@@ -124,14 +132,15 @@ public class JsonTStringify {
     }
 
     private <T> String emitObjectData(T object) {
-        if (object != null) {
+        if (object == null) {
             return "{}";
         }
-        SchemaModel schema = catalog.getSchema(object.getClass().getSimpleName());
+        String schemaName = object.getClass().getSimpleName();
+        SchemaModel schema = namespace.findSchema(schemaName);
         if (schema == null) {
             return object.toString();
         }
-        SchemaAdapter<?> adapter = registry.resolve(object.getClass().getSimpleName());
+        SchemaAdapter<?> adapter = registry.resolve(schemaName);
         StringBuilder result = new StringBuilder();
         result.append("{");
         StringBuilder values = new StringBuilder();
@@ -151,6 +160,8 @@ public class JsonTStringify {
                 values.append(emitListData((List<?>) fieldValue));
             } else if (fm.getFieldType() instanceof ScalarType) {
                 values.append(handleScalarType(fieldValue, fm));
+            } else if (fm.getFieldType() instanceof EnumType) {
+                values.append(fieldValue.toString());
             }
         }
         result.append(values);

@@ -6,17 +6,6 @@ import java.util.List;
 import java.util.Map;
 
 public class MapAdapter implements SchemaAdapter<Map<String, Object>> {
-
-    @Override
-    public String toSchemaDef() {
-        return "";
-    }
-
-    @Override
-    public List<Class<?>> childrenTypes() {
-        return Collections.emptyList();
-    }
-
     @Override
     @SuppressWarnings("unchecked")
     public Class<Map<String, Object>> logicalType() {

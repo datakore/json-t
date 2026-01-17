@@ -3,7 +3,7 @@ package io.github.datakore.jsont.entity;
 import io.github.datakore.jsont.JsonTType;
 
 public class Address implements JsonTType {
-    private String street;
+    private String status;
     private String city;
     private String zipCode;
 
@@ -11,12 +11,18 @@ public class Address implements JsonTType {
 
     }
 
-    public String getStreet() {
-        return street;
+    public Address(String city, String zipCode, String status) {
+        this.city = city;
+        this.zipCode = zipCode;
+        this.status = status;
     }
 
-    public void setStreet(String street) {
-        this.street = street;
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public String getCity() {

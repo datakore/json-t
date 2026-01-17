@@ -61,4 +61,14 @@ public class NamespaceT {
         }
         return null;
     }
+
+    public EnumModel findEnum(String simpleName) {
+        for (SchemaCatalog catalog : catalogs) {
+            EnumModel model = catalog.getEnum(simpleName);
+            if (model != null) {
+                return model;
+            }
+        }
+        return null;
+    }
 }

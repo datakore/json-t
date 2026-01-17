@@ -4,27 +4,11 @@ import io.github.datakore.jsont.adapters.SchemaAdapter;
 import io.github.datakore.jsont.entity.Address;
 import io.github.datakore.jsont.entity.User;
 
+import java.util.Arrays;
 import java.util.List;
 
 // class name to be dynamic <modelName>Adapter implements SchemaAdapter<modelName>
 public class UserAdapter implements SchemaAdapter<User> {
-    @Override
-    public String toSchemaDef() {
-        return "        User: {\n" +
-                "            int: id,\n" +
-                "            str: username,\n" +
-                "            str: email?,\n" +
-                "            <Address>[]: address,\n" +
-                "            str[]: tags?,\n" +
-                "            <Role>: role?\n" +
-                "        }";
-    }
-
-    @Override
-    public List<Class<?>> childrenTypes() {
-        return List.of(new Class[]{Address.class});
-    }
-
     // this method also uses public Class<modelName>
     @Override
     public Class<User> logicalType() {
@@ -56,8 +40,8 @@ public class UserAdapter implements SchemaAdapter<User> {
             case "address":
                 user.setAddress((Address) value);
                 break;
-            case "zipCode":
-                user.getAddress().setZipCode((String) value);
+            case "role":
+                user.setRole((String) value);
                 break;
             case "tags":
                 if (value instanceof List) {
@@ -81,10 +65,10 @@ public class UserAdapter implements SchemaAdapter<User> {
                 return user.getEmail();
             case "address":
                 return user.getAddress();
-            case "zipCode":
-                return user.getTags();
+            case "role":
+                return user.getRole();
             case "tags":
-                return user.getTags();
+                return Arrays.asList(user.getTags());
             default:
         }
         return null;

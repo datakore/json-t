@@ -283,7 +283,7 @@ public class SchemaCatalog {
         }
         sb.append(schemas);
         sb.append("]");
-        sb.append("enums: [");
+        sb.append(",enums: [");
         StringBuilder enums = new StringBuilder();
         for (Map.Entry<String, EnumModel> entry : enumModelMap.entrySet()) {
             if (enums.length() > 0) {

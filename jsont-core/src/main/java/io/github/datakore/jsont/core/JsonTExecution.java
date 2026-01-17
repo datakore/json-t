@@ -4,7 +4,6 @@ import io.github.datakore.jsont.adapters.SchemaAdapter;
 import io.github.datakore.jsont.errors.ErrorLocation;
 import io.github.datakore.jsont.errors.Severity;
 import io.github.datakore.jsont.errors.ValidationError;
-import io.github.datakore.jsont.exception.DataException;
 import io.github.datakore.jsont.exception.SchemaException;
 import io.github.datakore.jsont.execution.CSVErrorLogger;
 import io.github.datakore.jsont.execution.DataPipeline;
@@ -13,6 +12,7 @@ import io.github.datakore.jsont.grammar.schema.ast.FieldModel;
 import io.github.datakore.jsont.grammar.schema.ast.SchemaModel;
 import io.github.datakore.jsont.grammar.types.ObjectType;
 import io.github.datakore.jsont.parser.DataRowVisitor;
+import io.github.datakore.jsont.validator.SchemaValidator;
 import org.antlr.v4.runtime.CharStream;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -55,7 +55,31 @@ public class JsonTExecution {
         }
     }
 
-    public Flux<Map<String, Object>> stream(int parallelism) {
+    public Flux<Map<String, Object>> parse(int parallelism) {
+        return createBaseStream(parallelism);
+    }
+
+    public Flux<Map<String, Object>> validate(Class<?> targetType, int parallelism) {
+        SchemaModel schema = config.namespaceT.findSchema(targetType.getSimpleName());
+        SchemaValidator validator = new SchemaValidator(config.namespaceT, config.errorCollector);
+        return parse(parallelism)
+                .map(map -> {
+                    validator.validate(schema, map);
+                    return map;
+                });
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> Flux<T> convert(Class<T> targetType, int parallelism) {
+        return validate(targetType, parallelism)
+                .map(map -> {
+                    SchemaModel schema = config.namespaceT.findSchema(targetType.getSimpleName());
+                    SchemaAdapter<?> adapter = config.adapterRegistry.resolve(schema.name());
+                    return (T) convertToType(map, schema, adapter);
+                });
+    }
+
+    private Flux<Map<String, Object>> createBaseStream(int parallelism) {
         final DataPipeline pipeline = new DataPipeline(config.bufferSize, java.time.Duration.ofSeconds(1), new CSVErrorLogger(config.errorFile));
         DataRowVisitor rowListener = new DataRowVisitor(config.errorCollector, config.namespaceT, pipeline);
 
@@ -76,23 +100,6 @@ public class JsonTExecution {
                 .sequential();
     }
 
-    @SuppressWarnings("unchecked")
-    public <T> Flux<T> as(Class<T> targetType, int parallelism) {
-        final SchemaAdapter<?> adapter = config.adapterRegistry.resolve(targetType.getSimpleName());
-        if (adapter == null) {
-            throw new DataException("No adapter found for type " + targetType.getName());
-        }
-        final SchemaModel schema = config.namespaceT.findSchema(targetType.getSimpleName());
-        if (schema == null) {
-            throw new DataException("No schema found for type " + targetType.getName());
-        }
-
-        return stream(parallelism).map(map -> {
-            validateRecord(map, schema);
-
-            return (T) convertToType(map, schema, adapter);
-        });
-    }
 
     @SuppressWarnings("unchecked")
     private Object convertToType(Map<String, Object> map, SchemaModel schema, SchemaAdapter<?> adapter) {

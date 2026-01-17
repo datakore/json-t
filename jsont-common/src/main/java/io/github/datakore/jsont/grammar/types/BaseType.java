@@ -20,11 +20,11 @@ public abstract class BaseType implements ValueType {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        if (isObject()) {
+        if (isObject() || isEnum()) {
             sb.append("<");
         }
         sb.append(type());
-        if (isObject()) {
+        if (isObject() || isEnum()) {
             sb.append(">");
         }
         if (isArray()) {

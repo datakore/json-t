@@ -5,15 +5,13 @@
             1,
             "alice_dev",
             "alice@example.com",
-            { "123 Silicon Way", "Tech City", 94000 },
-            [ "developer", "admin" ]
+            ADMIN, ["t1","t2"],
+            {"Chennai","60015",ACTIVE}
         },
         {
             2,
             "bob_guest",
-            null,
-            { "456 Market St", "Old Town", 10101 },
-            [ "guest" ]
+            null,USER,null,{"Delhi","123456",SUSPENDED}
         }
     ]
 }

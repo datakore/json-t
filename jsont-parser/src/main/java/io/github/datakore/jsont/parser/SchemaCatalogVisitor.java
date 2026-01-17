@@ -172,11 +172,7 @@ public class SchemaCatalogVisitor extends JsonTBaseListener {
 
     @Override
     public void enterConstraintsSection(JsonTParser.ConstraintsSectionContext ctx) {
-        if (currentFieldConstraints == null) {
-            currentFieldConstraints = new ArrayList<>();
-        } else {
-            currentFieldConstraints.clear();
-        }
+        currentFieldConstraints = new ArrayList<>();
     }
 
     @Override
@@ -221,11 +217,8 @@ public class SchemaCatalogVisitor extends JsonTBaseListener {
 
     @Override
     public void enterFieldDecl(JsonTParser.FieldDeclContext ctx) {
-        if (fieldInfo == null) {
-            fieldInfo = new LinkedHashMap<>();
-        } else {
-            fieldInfo.clear();
-        }
+        fieldInfo = new LinkedHashMap<>();
+        currentFieldConstraints = null;
     }
 
     @Override

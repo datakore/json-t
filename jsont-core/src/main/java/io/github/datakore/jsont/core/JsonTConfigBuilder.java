@@ -8,7 +8,9 @@ import io.github.datakore.jsont.execution.ParserExecutor;
 import io.github.datakore.jsont.grammar.schema.ast.NamespaceT;
 import io.github.datakore.jsont.parser.SchemaCatalogVisitor;
 import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 
+import java.io.IOException;
 import java.nio.file.Path;
 
 public class JsonTConfigBuilder {
@@ -27,6 +29,10 @@ public class JsonTConfigBuilder {
     public JsonTConfigBuilder withErrorCollector(ErrorCollector collector) {
         this.errorCollector = collector;
         return this;
+    }
+
+    public JsonTConfigBuilder source(Path path) throws IOException {
+        return source(CharStreams.fromPath(path));
     }
 
     public JsonTConfigBuilder source(CharStream schemaSource) {

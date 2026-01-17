@@ -12,6 +12,10 @@ public abstract class BaseConstraint implements FieldConstraint {
 
     @Override
     public String toString() {
-        return String.format("%s = %s", type.getIdentifier(), constraintValue());
+        String name = null;
+        if (!type.getIdentifier().isEmpty()) {
+            name = type.getIdentifier().iterator().next();
+        }
+        return String.format("%s = %s", name, constraintValue());
     }
 }

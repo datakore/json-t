@@ -3,11 +3,6 @@ package io.github.datakore.jsont.adapters;
 import java.util.List;
 
 public interface SchemaAdapter<T> {
-
-    String toSchemaDef();
-
-    List<Class<?>> childrenTypes();
-
     Class<T> logicalType();
 
     T createTarget();

@@ -6,6 +6,23 @@ public class User implements JsonTType {
     private int id;
     private String userName;
     private String email;
+    private String role;
+
+    public User(int id, String userName, String role, Address address) {
+        this.id = id;
+        this.userName = userName;
+        this.role = role;
+        this.address = address;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     private Address address;
     private String[] tags;
 
