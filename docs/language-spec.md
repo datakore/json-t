@@ -8,20 +8,36 @@ the data records.
 
 ## 1. Document Structure
 
-A JsonT document is composed of two primary sections: the **Catalog** (Schemas and Enums) and the **Data** (Records).
+A JsonT document is composed of `namespace` object or `data` object. Either of them can be present, and both can can be
+present as well
+
+```antlrv4-tool
+jsonT
+    : nameSpace? data? EOF
+    ;
+```
+
+---
+
+## 2. Catalog Section
+
+```antlrv4-tool
+nameSpace
+: LB NS_NAME COLON LB
+NSURL_NAME COLON nsBaseUrl COMMA
+CATALOGS_NAME COLON LA catalog (COMMA catalog)* RA
+RB RB
+;
+```
+
+A sample that matches the above grammar is as follows
 
 ```jsont
 {
-  // --- Catalog ---
-  "schemas": { ... },
-  "enums": [ ... ],
-
-  // --- Data ---
-  "data-schema": "SchemaName",
-  "data": [
-    { ... },
-    { ... }
-  ]
+  namespace: {
+    baseUrl: "https://api.datakore.com/v1",
+    catalogs: [ <catalog>* ]
+  }
 }
 ```
 
@@ -29,7 +45,43 @@ A JsonT document is composed of two primary sections: the **Catalog** (Schemas a
 
 ## 2. Catalog Section
 
-The Catalog defines the structural blueprints used to interpret the data records.
+Catalog is a collection of Schema and Enum definitions and its grammar is as follows
+Catalog shall have mandatory schemas, but an optional enums section
+
+```antlrv4-tool
+catalog
+    : LB
+    schemasSection
+    (COMMA enumsSection)?
+    RB
+    ;
+```
+
+An example document that matches the above grammar
+
+```jsont
+{
+        schemas: [
+          User: {
+            i32: id,
+            str: username(minLength=5,maxLength='10'),
+            str: email?(minLength=8),
+            <Role>: role,
+            str[]: tags?,
+            <Address>: address
+          },
+          Address: {
+             str: city,
+             str: zipCode,
+             <Status>: status?
+          }
+        ],
+        enums: [
+          Status: [ ACTIVE, INACTIVE, SUSPENDED ],
+          Role: [ ADMIN, USER ]
+        ]
+      }
+```
 
 ### 2.1 Schema Definitions
 
@@ -44,7 +96,7 @@ fieldDecl : typeRef ':' identifier optionalMark? '(' constraintsSection? ')' ;
 **Components:**
 
 - **Type Reference (`typeRef`)**: Specifies the data type.
-    - Scalar: `int`, `str`, `bool`, etc.
+    - Scalar: `i32`, `str`, `bool`, etc.
     - Object Reference: `<Address>`
     - Arrays: `str[]`, `<Item>[]`
 - **Identifier**: The name of the field.
@@ -57,7 +109,7 @@ fieldDecl : typeRef ':' identifier optionalMark? '(' constraintsSection? ')' ;
 ```jsont
 schemas: {
   User: {
-    int: id (),
+    i32: id (),
     str: email? (regex("^.+@.+\..+$")),
     str[]: roles ()
   }
@@ -122,10 +174,15 @@ JsonT supports a rich set of built-in scalar types, identified by specific keywo
 
 | Key    | Type    | Description                     |
 |:-------|:--------|:--------------------------------|
-| `int`  | Integer | 32-bit signed integer           |
-| `long` | Long    | 64-bit signed integer           |
-| `flt`  | Float   | Single-precision floating point |
-| `dbl`  | Decimal | Double-precision floating point |
+| `i16`  | Short   | 16-bit signed integer           |
+| `i32`  | Integer | 32-bit signed integer           |
+| `i64`  | Long    | 64-bit signed integer           |
+| `u16`  | UShort  | 16-bit unsigned integer         |
+| `u32`  | UInt    | 32-bit unsigned integer         |
+| `u64`  | ULong   | 64-bit unsigned integer         |
+| `d32`  | Float   | Single-precision floating point |
+| `d64`  | Double  | Double-precision floating point |
+| `d128` | Decimal | 128-bit decimal floating point  |
 | `bool` | Boolean | `true` or `false`               |
 | `str`  | String  | UTF-8 character sequence        |
 | `uuid` | UUID    | Universally Unique Identifier   |
