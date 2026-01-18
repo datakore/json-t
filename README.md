@@ -80,24 +80,32 @@ The result is a data format that is:
 
 ### Schema Definition
 
-Define your data structure once.
+Define your data structure once.  Expanded schema to include namespace, catalog, and then schemas / enums - to bring parity to Json Schema so that we can use either of them to serialize / deserialize data
 
 ```jsont
 {
-    schemas: {
-        User: {
+  namespace: {
+    baseUrl: "https://api.datakore.com/v1",
+    catalogs: [
+      {
+        schemas: [
+          User: {
             i32: id,
-            str: username,
-            str: email?,
-            <Address>: address,
-            str[]: tags?
-        },
-        Address: {
-            str: street,
-            str: city,
-            zip: zipCode
-       }
-    }
+            str: username(minLength=5,maxLength='10'),
+            str: email?(minLength=8)
+          },
+          Address: {
+             str: city,
+             str: zipCode
+          }
+        ],
+        enums: [
+          Status: [ ACTIVE, INACTIVE, SUSPENDED ],
+          Role: [ ADMIN, USER ]
+        ]
+      }
+    ]
+  }
 }
 ```
 
@@ -107,10 +115,20 @@ Transmit data as compact tuples.
 
 ```jsont
 {
-	data-schema: User,
-	data: [
-        { 123456, "sasikp0", "test@sasikp.com0", { "34a Perumbakkam0", "Chennai0", "600150"}, ["developer0", "admin0"]},
-        { 123457, "sasikp1", "test@sasikp.com1", { "34a Perumbakkam1", "Chennai1", "600151"}, ["developer1", "admin1"]}
+    data-schema: User,
+    data: [
+        {
+            1,
+            "alice_dev",
+            "alice@example.com",
+            ADMIN, ["t1","t2"],
+            {"Chennai","60015",ACTIVE}
+        },
+        {
+            2,
+            "bob_guest",
+            null,USER,null,{"Delhi","123456",SUSPENDED}
+        }
     ]
 }
 ```
@@ -138,34 +156,61 @@ JSON-T provides a Java API for parsing and generating data.
 <dependency>
     <groupId>io.github.datakore</groupId>
     <artifactId>json-t</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.2</version>
 </dependency>
 ```
 
 ### Reading Data (Async as Stream) - Use this approach as a default mechanism (or) specifically while handling large batches
 
-```java
-    @Test
-    void shouldReadDataAsStream() throws IOException {
-        JsonTConfig config = JsonT.configureBuilder()
-                .withAdapters(new AddressAdapter()).withAdapters(new UserAdapter())
-                .withErrorCollector(new DefaultErrorCollector())
-                .source(scPath) // Schema Path
-                .build();
+1. 
 
-        CharStream dataStream = CharStreams.fromPath(datPath);
-        AtomicInteger counter = new AtomicInteger();
-        
-        // Use JsonTExecution for streaming
-        config.source(dataStream)
-              .convert(User.class, 4) // 4 parallel threads
-              .doOnNext(user -> {
-                  if (counter.getAndIncrement() % 1000 == 0){
-                      System.out.printf("Handled %d records so far\n", counter.get());
-                  }
-              })
-              .blockLast();
-    }
+```java
+private JsonTConfig getJsonTConfig(Path errorPath) throws IOException {
+    // provide schema path
+  Path schemaPath = Paths.get("src/test/resources/all-type-schema.jsont");
+  assert schemaPath.toFile().exists();
+  // Use adapters to read the content
+  AllTypeHolderAdapter a1 = new AllTypeHolderAdapter();
+  DateTypeAdapter a2 = new DateTypeAdapter();
+  NumberTypeAdapter a3 = new NumberTypeAdapter();
+  StringEntryAdapter a4 = new StringEntryAdapter();
+  ArrayEntryAdapter a5 = new ArrayEntryAdapter();
+  JsonTConfigBuilder builder = JsonT.configureBuilder()
+          .withErrorCollector(errorCollector).withAdapters(a1).withAdapters(a2).withAdapters(a3).withAdapters(a4).withAdapters(a5);
+  if (errorPath != null) {
+    builder = builder.withErrorFile(errorPath);
+  }
+  // Read the schema here
+  return builder.source(schemaPath).build();
+}
+
+    @Test
+void shouldParseUsingJsonTExecution() throws IOException {
+  // Supply the data file (or) CharStream  
+  String dataFile = "src/test/resources/all-type-sample.jsont";
+  Path dataPath = Paths.get(dataFile);
+  assert dataPath.toFile().exists();
+  // While parsing, if there're any errors, errors are emitted to CSV
+  Path errorPath = Paths.get(dataFile.concat(".csv"));
+  JsonTConfig config = getJsonTConfig(errorPath);
+  // This is a oneliner that creates the execution
+  JsonTExecution execution = config.source(dataPath);
+
+  AtomicLong rowsProcessed = new AtomicLong();
+  Instant start = Instant.now();
+  // Parse the data using parallel threads
+  execution.parse(4) // Use 4 parallel threads
+          .doOnNext(row -> {
+            long count = rowsProcessed.incrementAndGet();
+            if (count % 10 == 0) {
+              System.out.printf("Processed %d rows so far - time elapsed %s \n", count, Duration.between(start, Instant.now()));
+            }
+          })
+          .blockLast(); // Wait for completion
+  Instant end = Instant.now();
+  System.out.printf("Took %s to process %d records", Duration.between(start, end), rowsProcessed.get());
+}
+
 ```
 
 ### Reading Data (Synchronous as List) - Use this approach for smaller payloads
@@ -193,21 +238,47 @@ JSON-T provides a Java API for parsing and generating data.
 ```
 
 ### Writing Data
+There are 3 ways to stringify JsonT data
+1. ```java public Mono<Void> stringify(T data, Writer writer, boolean includeSchema) ``` This is to stringify a single record
+2. ```java public Mono<Void> stringify(List<T> data, Writer writer, boolean includeSchema)``` This is to stringify a list of records
+3. ```java public Mono<Void> stringify(Writer writer, long totalRecords, int batchSize, int flushEveryNBatches, boolean includeSchema)``` This hleps stringify many records as a stream
 
 ```java
-JsonTConfig config = JsonT.configureBuilder()
-        .withAdapters(new AddressAdapter())
-        .withAdapters(new UserAdapter())
-        .withErrorCollector(new DefaultErrorCollector())
-        .source(Paths.get("schema.jsont"))
-        .build();
-
-List<User> users = getUsers(); // Your data source
-
-// Write to a file or stream
-try (Writer writer = new BufferedWriter(new FileWriter("output.jsont"))) {
-    config.stringify(users, StringifyMode.DATA_ONLY, writer);
+// This method is to create JsonTWriter
+private <T> StreamingJsonTWriter<T> getTypedStreamWriter(String path, Class<T> clazz, DataGenerator<T> gen, SchemaAdapter<?>... adapters) throws IOException {
+  JsonTConfig config = getJsonTConfig(path, adapters);
+  StreamingJsonTWriterBuilder<T> builder = new StreamingJsonTWriterBuilder<T>()
+          .registry(config.getAdapters())
+          .namespace(config.getNamespace());
+  if (gen != null) {
+    builder = builder.generator(gen);
+  }
+  return builder
+          .build(clazz.getSimpleName());
 }
+
+// This method is to create JsonTConfig, from schema
+private JsonTConfig getJsonTConfig(String schemaPath, SchemaAdapter<?>... adapters) throws IOException {
+  Path scPath = Paths.get(schemaPath);
+  assert scPath.toFile().exists();
+  return JsonT.configureBuilder()
+          .withAdapters(adapters)
+          .withErrorCollector(errorCollector).source(scPath).build();
+}
+
+@Test
+void shouldStringifyData() throws IOException {
+  Address add = new Address("Dallas", "12345", "ACTIVE");
+  User u1 = new User(123, "user001", "ADMIN", add);
+  u1.setEmail("alice@example.com");
+  u1.setTags(new String[]{"programmer"});
+  StreamingJsonTWriter<User> writer = getTypedStreamWriter("src/test/resources/ns-schema.jsont", User.class, null, adapter1, adapter2);
+  StringWriter sw = new StringWriter();
+  // This is where the actual stringification happens
+  writer.stringify(u1, sw, true).block();
+  System.out.println(sw);
+}
+
 ```
 
 ---
@@ -240,6 +311,22 @@ JSON-T validation is **built-in**, not optional:
 If a document parses successfully, it is structurally valid.
 
 ---
+## Updates for v0.0.2
+
+1. Earlier, I was able to parse a simple 700k record file. Beyond that, I was getting out of memory error.  <br />
+Main reason is, I was loading the complete data file in memory, and then traversing it.  <br />
+Fixed this issue by using streaming listener for parsing, and kept fixed backpressure, and wait for subscriber to process the items <br />
+This approach enabled to parse more than 1.5m records of close to 1.5kb per record
+2. Then, for stringification also, loading all objects and writing them was not the right approach, so made the changes to provide multiple options for the clients to use
+3. Using this, when I generated a 10m records, I could finish the task without any errors.  There's further scope to improve performance
+4. For reading / parse, I tried with 1m record file, the library that I use to parse, has limitation on file size, so I couldn't read the file. Explorting alternate options
+
+5. Refactored the code to make it readable and using right approach
+6. Introduced UNSPECIFIED status in the grammar, which is different from NULL and a value.  This can be used for CDC usecases
+
+7. Validation while parsing and serializing / stringification is working
+8. Introduced several types, read [Types](./docs/Types.md)
+---
 
 ## Status
 
@@ -247,21 +334,17 @@ If a document parses successfully, it is structurally valid.
 
 🚀 Current Development Status
 
-- We are currently focused on hardening the core engine and expanding the developer experience:
-- Granular State Management: Implementing an unspecified terminal to distinguish between a field being explicitly set to
-  null versus a value remaining unchanged.
 - Performance Engineering: The Java implementation currently handles 750k records in stream mode with high efficiency.
   We are currently optimizing the engine to breach the 1 million record threshold without performance degradation.
 - Annotation Processing: Finalizing the Adapter annotation processing templates to allow seamless integration with
   custom application POJOs and frameworks.
+- JsonT (namespace) <-> Json Schema conversion
 
 🗺️ Future Roadmap
 
 - The vision for JsonT is to become a cross-language standard for efficient data transformation:
 - Tooling & IDE Support: * Development of a formal TextMate Grammar to provide high-quality syntax highlighting across
   VS Code, Sublime Text, and GitHub.
-- Validation Layer: Integrated constraint validation during both read and write cycles to ensure data integrity at the
-  edge.
 - Multi-Language Support: First-class implementations for Rust (high-performance systems) and TypeScript (web/node.js)
   to enable a truly universal data stack.
 - Interoperability: Bidirectional converters for JSON ↔ JSON-T and support for other major data serialization formats

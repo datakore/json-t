@@ -17,9 +17,9 @@ import java.util.Arrays;
 public class JsonTConfigBuilder {
     private NamespaceT namespaceT;
     private ErrorCollector errorCollector = new DefaultErrorCollector();
-    private AdapterRegistry adapterRegistry = new AdapterRegistry();
+    private final AdapterRegistry adapterRegistry = new AdapterRegistry();
 
-    private int bufferSize = 1024;
+    private final int bufferSize = 1024;
     private Path errorFile;
 
     public JsonTConfigBuilder withAdapters(SchemaAdapter<?> adapter) {

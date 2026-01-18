@@ -13,11 +13,12 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 public class StreamingJsonTWriter<T> {
     private final DataGenerator<T> generator;
     private final String dataSchema;
-    private JsonTStringify stringify;
+    private final JsonTStringify stringify;
 
     public StreamingJsonTWriter(String schema, DataGenerator<T> generator, NamespaceT namespace, AdapterRegistry registry) {
         this.dataSchema = schema;
@@ -69,22 +70,43 @@ public class StreamingJsonTWriter<T> {
         });
     }
 
-    private Flux<T> createDataStream(long count) {
-        return Flux.<T>generate(sink -> {
-            try {
-                T data = generator.generate(this.dataSchema);
-                sink.next(data);
-            } catch (Exception e) {
-                sink.error(e);
-            }
-        }).take(count);
+    private Flux<List<T>> createBatchedDataStream(long totalRecords, int batchSize) {
+        return Flux.generate(
+                () -> 0L,
+                (state, sink) -> {
+                    if (state >= totalRecords) {
+                        sink.complete();
+                        return state;
+                    }
+                    int count = (int) Math.min(batchSize, totalRecords - state);
+                    List<T> batch = new java.util.ArrayList<>(count);
+                    try {
+                        for (int i = 0; i < count; i++) {
+                            batch.add(generator.generate(this.dataSchema));
+                        }
+                        sink.next(batch);
+                    } catch (Exception e) {
+                        sink.error(e);
+                    }
+                    return state + count;
+                }
+        );
     }
 
-    public Mono<Void> writeBatch(Writer writer,
-                                 long totalRecords,
-                                 int batchSize,
-                                 int flushEveryNBatches,
-                                 boolean includeSchema) {
+    public Mono<Void> stringify(Writer writer,
+                                long totalRecords,
+                                int batchSize,
+                                int flushEveryNBatches,
+                                boolean includeSchema) {
+        return stringify(writer, totalRecords, batchSize, flushEveryNBatches, includeSchema, null);
+    }
+
+    public Mono<Void> stringify(Writer writer,
+                                long totalRecords,
+                                int batchSize,
+                                int flushEveryNBatches,
+                                boolean includeSchema,
+                                Consumer<Long> onBatchComplete) {
         AtomicBoolean isFirstBatch = new AtomicBoolean(true);
         return Mono.fromRunnable(() -> {
                     try {
@@ -98,15 +120,21 @@ public class StreamingJsonTWriter<T> {
                 })
                 .subscribeOn(Schedulers.boundedElastic())
                 .thenMany(
-                        createDataStream(totalRecords)
-                                .buffer(batchSize)
+                        createBatchedDataStream(totalRecords, batchSize)
+                                .subscribeOn(Schedulers.parallel()) // Generate data on CPU-bound thread
+                                .publishOn(Schedulers.boundedElastic(), 16) // Switch to IO-bound thread for writing, buffer up to 16 batches
                                 .index()
                                 .concatMap(tuple -> {
                                     long batchIndex = tuple.getT1();
                                     List<T> batch = tuple.getT2();
 
                                     return writeBatchReactive(writer, batch, isFirstBatch)
-                                            .then(flushIfNeeded(writer, batchIndex, flushEveryNBatches));
+                                            .then(flushIfNeeded(writer, batchIndex, flushEveryNBatches))
+                                            .doOnSuccess(v -> {
+                                                if (onBatchComplete != null) {
+                                                    onBatchComplete.accept(batchIndex + 1);
+                                                }
+                                            });
                                 })
                 ).then(writeJsonEndAndFlush(writer));
     }
@@ -119,7 +147,7 @@ public class StreamingJsonTWriter<T> {
                 } catch (IOException e) {
                     throw new DataException("Failed to flush writer", e);
                 }
-            }).subscribeOn(Schedulers.boundedElastic()).then();
+            }).then();
         }
         return Mono.empty();
     }
@@ -133,7 +161,7 @@ public class StreamingJsonTWriter<T> {
             } catch (IOException e) {
                 throw new DataException("Failed to write JSON end", e);
             }
-        }).subscribeOn(Schedulers.boundedElastic()).then();
+        }).then();
     }
 
     private Mono<Void> writeBatchReactive(Writer writer, List<T> batch, AtomicBoolean isFirstBatch) {

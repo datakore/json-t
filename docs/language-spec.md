@@ -8,20 +8,36 @@ the data records.
 
 ## 1. Document Structure
 
-A JsonT document is composed of two primary sections: the **Catalog** (Schemas and Enums) and the **Data** (Records).
+A JsonT document is composed of `namespace` object or `data` object. Either of them can be present, and both can can be
+present as well
+
+```antlrv4-tool
+jsonT
+    : nameSpace? data? EOF
+    ;
+```
+
+---
+
+## 2. Catalog Section
+
+```antlrv4-tool
+nameSpace
+: LB NS_NAME COLON LB
+NSURL_NAME COLON nsBaseUrl COMMA
+CATALOGS_NAME COLON LA catalog (COMMA catalog)* RA
+RB RB
+;
+```
+
+A sample that matches the above grammar is as follows
 
 ```jsont
 {
-  // --- Catalog ---
-  "schemas": { ... },
-  "enums": [ ... ],
-
-  // --- Data ---
-  "data-schema": "SchemaName",
-  "data": [
-    { ... },
-    { ... }
-  ]
+  namespace: {
+    baseUrl: "https://api.datakore.com/v1",
+    catalogs: [ <catalog>* ]
+  }
 }
 ```
 
@@ -29,7 +45,43 @@ A JsonT document is composed of two primary sections: the **Catalog** (Schemas a
 
 ## 2. Catalog Section
 
-The Catalog defines the structural blueprints used to interpret the data records.
+Catalog is a collection of Schema and Enum definitions and its grammar is as follows
+Catalog shall have mandatory schemas, but an optional enums section
+
+```antlrv4-tool
+catalog
+    : LB
+    schemasSection
+    (COMMA enumsSection)?
+    RB
+    ;
+```
+
+An example document that matches the above grammar
+
+```jsont
+{
+        schemas: [
+          User: {
+            i32: id,
+            str: username(minLength=5,maxLength='10'),
+            str: email?(minLength=8),
+            <Role>: role,
+            str[]: tags?,
+            <Address>: address
+          },
+          Address: {
+             str: city,
+             str: zipCode,
+             <Status>: status?
+          }
+        ],
+        enums: [
+          Status: [ ACTIVE, INACTIVE, SUSPENDED ],
+          Role: [ ADMIN, USER ]
+        ]
+      }
+```
 
 ### 2.1 Schema Definitions
 

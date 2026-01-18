@@ -16,7 +16,7 @@ import java.util.List;
 
 public class ArrayEntryAdapter implements SchemaAdapter<ArrayEntry>, DataGen<ArrayEntry> {
     private final LinkedHashMap<String, FieldConstraint[]> map;
-    private RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
+    private final RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
 
 
     public ArrayEntryAdapter() {

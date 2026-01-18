@@ -10,7 +10,7 @@ import java.time.*;
 
 public class DateTypeAdapter implements DataGen<DateEntry>, SchemaAdapter<DateEntry> {
     private static final String[] FIELD_NAMES = {"t_date", "t_time", "t_dtm", "t_ts", "t_tsz", "t_insz", "t_yr", "t_mon", "t_day", "t_ym", "t_md"};
-    private RandomDataGenerator generator = new RandomDataGenerator();
+    private final RandomDataGenerator generator = new RandomDataGenerator();
 
     @Override
     public Class<DateEntry> logicalType() {

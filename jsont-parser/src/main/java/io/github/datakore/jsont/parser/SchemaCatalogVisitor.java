@@ -127,7 +127,7 @@ public class SchemaCatalogVisitor extends JsonTBaseListener {
         }
         String enumName = StringUtils.removeQuotes(ctx.getText());
         if (StringUtils.isBlank(enumName)) {
-            String location = String.format("Enum definition");
+            String location = "Enum definition";
             addError(Severity.FATAL, "Enum name cannot be null or blank", new ErrorLocation(location));
         } else {
             enumInfo.put(enumName, new ArrayList<>());
@@ -139,7 +139,7 @@ public class SchemaCatalogVisitor extends JsonTBaseListener {
         String enumName = enumInfo.entrySet().stream().findFirst().get().getKey();
         String value = StringUtils.removeQuotes(ctx.getText());
         if (StringUtils.isBlank(value)) {
-            String location = String.format("Enum definition");
+            String location = "Enum definition";
             addError(Severity.FATAL, "Enum value cannot be null or blank for enum type " + enumName, new ErrorLocation(location));
         } else {
             enumInfo.get(enumName).add(value);

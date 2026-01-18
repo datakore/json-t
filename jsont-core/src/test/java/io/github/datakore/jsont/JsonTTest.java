@@ -22,8 +22,10 @@ import org.antlr.v4.runtime.CharStreams;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -31,6 +33,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class JsonTTest {
     //String schemaPath = "src/test/resources/schema.jsont";
@@ -100,9 +105,15 @@ public class JsonTTest {
         DataGenerator<AllTypeHolder> gen = new AllTypeHolderDataGen();
         StreamingJsonTWriter<AllTypeHolder> stringifier = getTypedStreamWriter(
                 "src/test/resources/all-type-schema.jsont", AllTypeHolder.class, gen, a1, a2, a3, a4, a5);
-        StringWriter sw = new StringWriter();
-        stringifier.writeBatch(sw, 100, 10, 25, false).block();
-        System.out.println(sw);
+        String outFile = String.format("10_000_000-%d.jsont", System.currentTimeMillis());
+        Path path = Paths.get(outFile);
+        path = Files.createFile(path);
+        try (FileWriter writer = new FileWriter(path.toFile())) {
+            Consumer<Long> progressMonitor = batchCount -> System.out.println("Completed batch " + batchCount);
+            stringifier.stringify(writer, 1_000_000, 25000, 25, false,progressMonitor)
+                    .block();
+        }
+        System.out.println(outFile);
     }
 
     private JsonTConfig getJsonTConfig(Path errorPath) throws IOException {
@@ -160,6 +171,26 @@ public class JsonTTest {
         Instant end = Instant.now();
         System.out.println("Total number of records read is " + rowsProcessed.get());
         System.out.printf("Took %s to process %d records", Duration.between(strt, end), rowsProcessed.get());
+    }
+
+    @Test
+    void shouldReadDataAsList() throws IOException {
+        JsonTConfig config = JsonT.configureBuilder()
+                .withAdapters(new AddressAdapter()).withAdapters(new UserAdapter())
+                .withErrorCollector(new DefaultErrorCollector())
+                .source(scPath)
+                .build();
+
+        CharStream dataStream = CharStreams.fromPath(datPath);
+
+        // Collect stream into a list
+        List<User> userList = config.source(dataStream)
+                .convert(User.class, 2)
+                .collectList()
+                .block();
+
+        assertEquals(total, userList.size());
+        System.out.println(userList);
     }
 
     @Test

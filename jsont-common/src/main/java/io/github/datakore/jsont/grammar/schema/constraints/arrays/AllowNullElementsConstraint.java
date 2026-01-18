@@ -16,7 +16,7 @@ public class AllowNullElementsConstraint extends BaseConstraint {
     @Override
     protected String checkConstraintList(List<Object> value) {
         if (!allowNullElements && value != null && value.stream().anyMatch(Objects::isNull)) {
-            return String.format("Field requires no null elements");
+            return "Field requires no null elements";
         }
         return null;
     }

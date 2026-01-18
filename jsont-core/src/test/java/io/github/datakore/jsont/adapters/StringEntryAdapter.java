@@ -14,7 +14,7 @@ import java.util.LinkedHashMap;
 
 public class StringEntryAdapter implements DataGen<StringEntry>, SchemaAdapter<StringEntry> {
     private final LinkedHashMap<String, FieldConstraint[]> map;
-    private RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
+    private final RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
 
     public StringEntryAdapter() {
         this.map = new LinkedHashMap<String, FieldConstraint[]>();
