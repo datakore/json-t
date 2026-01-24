@@ -1,7 +1,6 @@
-package io.github.datakore.jsont.marketplace;
+package io.github.datakore.marketplace.entity;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 public class Order {

@@ -1,4 +1,4 @@
-package io.github.datakore.jsont.marketplace;
+package io.github.datakore.marketplace.entity;
 
 import java.time.LocalDate;
 

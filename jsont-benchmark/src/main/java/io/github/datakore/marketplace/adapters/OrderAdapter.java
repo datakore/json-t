@@ -1,11 +1,10 @@
-package io.github.datakore.jsont.adapters.marketplace;
+package io.github.datakore.marketplace.adapters;
 
 import io.github.datakore.jsont.adapters.SchemaAdapter;
-import io.github.datakore.jsont.marketplace.*;
 import io.github.datakore.jsont.util.CollectionUtils;
+import io.github.datakore.marketplace.entity.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 public class OrderAdapter implements SchemaAdapter<Order> {
     @Override

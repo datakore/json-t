@@ -1,15 +1,15 @@
-package io.github.datakore.jsont.datagen;
+package io.github.datakore.marketplace.datagen;
 
-import io.github.datakore.jsont.marketplace.*;
+import io.github.datakore.jsont.datagen.DataGenerator;
 import io.github.datakore.jsont.util.CollectionUtils;
+import io.github.datakore.marketplace.entity.*;
 import org.instancio.Instancio;
+import org.instancio.Select;
 
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.instancio.Select.field;
 
 public class OrderDataGenerator implements DataGenerator<Order> {
 
@@ -28,17 +28,17 @@ public class OrderDataGenerator implements DataGenerator<Order> {
 
     private static Order getOrder(long i) {
         Order order = Instancio.of(Order.class)
-                .set(field(Order::getOrderId), i)
-                .generate(field(Order::getOrderNumber), gen ->
+                .set(Select.field(Order::getOrderId), i)
+                .generate(Select.field(Order::getOrderNumber), gen ->
                         gen.text().pattern("ORD-#d#d#d#d-#d#d#d#d"))
-                .generate(field(Order::getOrderStatus), gen -> gen.enumOf(OrderStatus.class))
-                .generate(field(Order::getLineItems), gen ->
+                .generate(Select.field(Order::getOrderStatus), gen -> gen.enumOf(OrderStatus.class))
+                .generate(Select.field(Order::getLineItems), gen ->
                         gen.collection().maxSize(10)) // 2-10 line items
-                .generate(field(Customer::getEmail), gen ->
+                .generate(Select.field(Customer::getEmail), gen ->
                         gen.text().pattern("#a#a#a#a#a#a#a@example.com"))
-                .generate(field(Address::getZipCode), gen ->
+                .generate(Select.field(Address::getZipCode), gen ->
                         gen.text().pattern("#d#d#d#d#d"))
-                .set(field(Payment::getCurrency), "USD")
+                .set(Select.field(Payment::getCurrency), "USD")
                 .create();
         return order;
     }

@@ -1,7 +1,7 @@
-package io.github.datakore.jsont.adapters.marketplace;
+package io.github.datakore.marketplace.adapters;
 
 import io.github.datakore.jsont.adapters.SchemaAdapter;
-import io.github.datakore.jsont.marketplace.Category;
+import io.github.datakore.marketplace.entity.Category;
 
 public class CategoryAdapter implements SchemaAdapter<Category> {
     @Override

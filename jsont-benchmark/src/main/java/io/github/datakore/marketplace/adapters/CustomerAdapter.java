@@ -1,8 +1,8 @@
-package io.github.datakore.jsont.adapters.marketplace;
+package io.github.datakore.marketplace.adapters;
 
 import io.github.datakore.jsont.adapters.SchemaAdapter;
-import io.github.datakore.jsont.marketplace.Address;
-import io.github.datakore.jsont.marketplace.Customer;
+import io.github.datakore.marketplace.entity.Address;
+import io.github.datakore.marketplace.entity.Customer;
 
 public class CustomerAdapter implements SchemaAdapter<Customer> {
     @Override

@@ -1,7 +1,7 @@
-package io.github.datakore.jsont.adapters.marketplace;
+package io.github.datakore.marketplace.adapters;
 
 import io.github.datakore.jsont.adapters.SchemaAdapter;
-import io.github.datakore.jsont.marketplace.Address;
+import io.github.datakore.marketplace.entity.Address;
 
 public class AddressAdapter implements SchemaAdapter<Address> {
     @Override

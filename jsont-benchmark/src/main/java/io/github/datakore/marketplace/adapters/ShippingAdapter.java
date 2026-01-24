@@ -1,8 +1,8 @@
-package io.github.datakore.jsont.adapters.marketplace;
+package io.github.datakore.marketplace.adapters;
 
 import io.github.datakore.jsont.adapters.SchemaAdapter;
-import io.github.datakore.jsont.marketplace.Shipping;
-import io.github.datakore.jsont.marketplace.ShippingMethod;
+import io.github.datakore.marketplace.entity.Shipping;
+import io.github.datakore.marketplace.entity.ShippingMethod;
 
 import java.time.LocalDate;
 

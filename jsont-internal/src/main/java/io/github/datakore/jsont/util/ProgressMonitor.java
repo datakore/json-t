@@ -17,7 +17,7 @@ public class ProgressMonitor implements Consumer<StepCounter> {
     public ProgressMonitor(long totalRecords, long batchSize, long progressWindowSize, boolean reportingAtRecordLevel) {
         this.totalRecords = totalRecords;
         this.batchSize = batchSize;
-        this.windowSize = progressWindowSize;
+        this.windowSize = Math.max(5,progressWindowSize);
         this.reportingAtRecordLevel = reportingAtRecordLevel;
         this.startMemory = getUsedMemory();
     }

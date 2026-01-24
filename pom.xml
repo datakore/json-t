@@ -204,6 +204,7 @@
         <module>jsont-processor</module>
         <module>jsont-internal</module>
         <module>jsont-core</module>
+        <module>jsont-benchmark</module>
     </modules>
 
 </project>
