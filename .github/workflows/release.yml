@@ -6,7 +6,6 @@ on:
       - main
     paths-ignore:
       - '**.md' # Ignores README changes to prevent unnecessary builds
-      - '.github/workflows/release.yml'
 
 jobs:
   publish:
@@ -14,6 +13,8 @@ jobs:
     permissions:
       contents: write  # Required to push the new tag and commit
       packages: write  # Required to publish artifacts to GitHub Packages
+      pages: write      # Required to deploy to GitHub Pages
+      id-token: write   # Required for OIDC authentication
 
     steps:
       # 1. Checkout Code
@@ -73,7 +74,36 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 7. Prepare Next Snapshot
+      # 7. Generate & Deploy Documentation
+      - name: Prepare Documentation
+        run: |
+          # Copy README.md to docs/index.md to serve as the homepage
+          cp README.md docs/index.md
+          
+          # Optional: Create a _config.yml if not exists to set theme or title
+          if [ ! -f docs/_config.yml ]; then
+            echo "theme: jekyll-theme-slate" > docs/_config.yml
+            echo "title: JsonT Documentation" >> docs/_config.yml
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+
+      # 8. Prepare Next Snapshot
       - name: Prepare Next Snapshot
         run: |
           # Calculate next snapshot version
