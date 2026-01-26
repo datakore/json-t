@@ -61,14 +61,14 @@ public class JsonTStructureAnalyzerTest {
         String schemaPath = "C:\\Users\\sasik\\github\\json-t\\jsont-benchmark\\src\\main\\java\\io\\github\\datakore\\marketplace\\entity\\ns-marketplace-schema.jsont";
         JsonTStructureAnalyzer analyzer = new JsonTStructureAnalyzer();
         AnalysisResult schemaResult = analyzer.analyze(Paths.get(schemaPath));
-        long totalRecords = 100000;
+        long totalRecords = 1_000_000;
         AnalysisResult dataResult = analyzer.analyze(Paths.get(String.format(path, totalRecords)));
         ErrorCollector errorCollector = new DefaultErrorCollector();
         NamespaceT ns = ParserExecutor.validateSchema(schemaResult, errorCollector);
         ChunkContext chunkContext = ParserExecutor.validateDataSchema(dataResult, ns);
         AtomicLong counter = new AtomicLong();
-        int batchSize = 1000;
-        ProgressMonitor monitor = new ProgressMonitor(totalRecords, batchSize, 10,true);
+        int batchSize = 10000;
+        ProgressMonitor monitor = new ProgressMonitor(totalRecords, batchSize, 50,true);
         monitor.startProgress();
         try (InputStream inputStream = Files.newInputStream(Paths.get(String.format(path, totalRecords)))) {
             ScanStage stage = new ScanStage(inputStream, chunkContext, monitor, batchSize);
@@ -76,6 +76,9 @@ public class JsonTStructureAnalyzerTest {
             stage2.execute(stage.execute(null))
                     .doOnNext(record -> {
                         counter.incrementAndGet();
+//                        if (counter.get() % 200_000 == 0){
+//                            System.out.println(record.values().get("orderNumber"));
+//                        }
                     })
                     .blockLast();
         }

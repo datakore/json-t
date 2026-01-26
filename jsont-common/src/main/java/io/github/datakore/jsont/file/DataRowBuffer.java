@@ -109,7 +109,7 @@ public class DataRowBuffer implements AutoCloseable {
                 if (depth == 0 && insideRow) {
                     insideRow = false;
                     byte[] rowData = currentRow.toByteArray();
-                    return new DataRowRecord(recordIndex++, rowData, context);
+                    return new DataRowRecord(++recordIndex, rowData, context);
                 }
             }
         }

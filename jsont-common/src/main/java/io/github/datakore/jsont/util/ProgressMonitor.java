@@ -17,7 +17,7 @@ public class ProgressMonitor implements Consumer<StepCounter> {
     public ProgressMonitor(long totalRecords, long batchSize, long progressWindowSize, boolean reportingAtRecordLevel) {
         this.totalRecords = totalRecords;
         this.batchSize = batchSize;
-        this.windowSize = Math.max(5,progressWindowSize);
+        this.windowSize = Math.max(5, progressWindowSize);
         this.reportingAtRecordLevel = reportingAtRecordLevel;
         this.startMemory = getUsedMemory();
     }
@@ -29,7 +29,7 @@ public class ProgressMonitor implements Consumer<StepCounter> {
     public void startProgress() {
         this.start = Instant.now();
         this.startMemory = getUsedMemory();
-        System.out.printf("Start Memory: %s%n", formatMemory(this.startMemory));
+        System.out.printf("%s: Start Memory: %s%n", DateTimeFormatter.ISO_INSTANT.format(this.start), formatMemory(this.startMemory));
     }
 
     @Override
@@ -42,16 +42,16 @@ public class ProgressMonitor implements Consumer<StepCounter> {
             // If reporting at record level, currentCount is the total records processed so far
             recordsProcessed = currentCount;
             currentBatch = currentCount / batchSize;
-            
+
             // Check if we just finished a window of batches
             if (currentCount > 0 && currentCount % (batchSize * windowSize) == 0) {
-                 printProgress(counter.getName(), currentBatch, recordsProcessed);
+                printProgress(counter.getName(), currentBatch, recordsProcessed);
             }
         } else {
             // If reporting at batch level, currentCount is the batch number (1, 2, 3...)
             currentBatch = currentCount;
             recordsProcessed = currentBatch * batchSize;
-            
+
             if (currentBatch > 0 && currentBatch % windowSize == 0) {
                 printProgress(counter.getName(), currentBatch, recordsProcessed);
             }
@@ -62,16 +62,16 @@ public class ProgressMonitor implements Consumer<StepCounter> {
         Instant now = Instant.now();
         long elapsed = Duration.between(start, now).toMillis();
         long throughput = (recordsProcessed * 1000) / Math.max(1, elapsed);
-        
+
         long currentMemory = getUsedMemory();
         long memoryDiff = currentMemory - startMemory;
         String sign = memoryDiff >= 0 ? "+" : "";
 
-        System.out.printf("%s: Batch %d: [%s] %d records, %d rec/sec, Mem: %s (%s%s)%n", 
+        System.out.printf("%s: Batch %d: [%s] %d records, %d rec/sec, Mem: %s (%s%s)%n",
                 DateTimeFormatter.ISO_INSTANT.format(now),
-                batchNo, 
-                stepName, 
-                recordsProcessed, 
+                batchNo,
+                stepName,
+                recordsProcessed,
                 throughput,
                 formatMemory(currentMemory),
                 sign,
@@ -82,7 +82,7 @@ public class ProgressMonitor implements Consumer<StepCounter> {
         Duration totalDuration = Duration.between(start, Instant.now());
         long elapsed = totalDuration.toMillis();
         long throughput = (totalRecords * 1000) / Math.max(1, elapsed);
-        
+
         long endMemory = getUsedMemory();
         long memoryDiff = endMemory - startMemory;
         String sign = memoryDiff >= 0 ? "+" : "";
