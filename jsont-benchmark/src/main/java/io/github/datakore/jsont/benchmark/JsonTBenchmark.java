@@ -31,7 +31,7 @@ public class JsonTBenchmark {
     private static final String SCHEMA_PATH = "jsont-benchmark/src/main/java/io/github/datakore/marketplace/entity/ns-marketplace-schema.jsont";
     private static final OrderDataGenerator generator = new OrderDataGenerator();
 
-    @Param({"1000000","2000000"})
+    @Param({"1000000", "2000000"})
     // 100k, 1M. 5M/10M might be too slow for standard JMH iteration times
     private long recordCount;
 
@@ -64,6 +64,7 @@ public class JsonTBenchmark {
         // Files.deleteIfExists(tempFile);
     }
 
+
     // Benchmark 1: Writing (Stringify)
     // We write to a NullWriter or a temp file. Writing to disk affects IO, but that's part of the use case.
     // To measure pure CPU/Throughput of generation+stringify, we can use a NullWriter.
@@ -95,7 +96,7 @@ public class JsonTBenchmark {
         }
     }
 
-    private static SchemaAdapter<?>[] loadAdapters() {
+    static SchemaAdapter<?>[] loadAdapters() {
         return new SchemaAdapter[]{
                 new OrderAdapter(),
                 new OrderLineItemAdapter(),

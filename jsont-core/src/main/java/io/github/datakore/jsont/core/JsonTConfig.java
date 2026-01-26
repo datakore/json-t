@@ -5,6 +5,7 @@ import io.github.datakore.jsont.errors.collector.ErrorCollector;
 import io.github.datakore.jsont.grammar.schema.ast.NamespaceT;
 import io.github.datakore.jsont.stringify.StreamingJsonTWriter;
 import io.github.datakore.jsont.stringify.StreamingJsonTWriterBuilder;
+import io.github.datakore.jsont.util.ChunkContext;
 import io.github.datakore.jsont.util.StepCounter;
 
 import java.io.InputStream;
@@ -15,6 +16,7 @@ import java.util.function.Consumer;
 
 public final class JsonTConfig {
     final NamespaceT namespaceT;
+    final ChunkContext context;
     final ErrorCollector errorCollector;
     final AdapterRegistry adapterRegistry;
     final int bufferSize;
@@ -22,8 +24,9 @@ public final class JsonTConfig {
     private Consumer<StepCounter> monitor;
 
 
-    public JsonTConfig(NamespaceT namespaceT, ErrorCollector errorCollector, AdapterRegistry adapterRegistry, int bufferSize, Path errorFile) {
-        this.namespaceT = namespaceT;
+    public JsonTConfig(ChunkContext context, ErrorCollector errorCollector, AdapterRegistry adapterRegistry, int bufferSize, Path errorFile) {
+        this.context = context;
+        this.namespaceT = context.getNamespace();
         this.errorCollector = errorCollector;
         this.adapterRegistry = adapterRegistry;
         this.bufferSize = bufferSize;

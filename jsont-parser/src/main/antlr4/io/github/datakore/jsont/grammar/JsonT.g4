@@ -7,7 +7,7 @@ grammar JsonT;
  */
 
 jsonT
-    : nameSpace? data? EOF
+    : nameSpace? data? chunkData? EOF
     ;
 
 /*
@@ -139,7 +139,11 @@ data
     ;
 
 dataSection
-    : DATA COLON LA dataRow (COMMA dataRow)* RA
+    : DATA COLON LA chunkData RA
+    ;
+
+chunkData
+    : dataRow (COMMA dataRow)* COMMA?
     ;
 
 dataRow

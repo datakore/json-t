@@ -17,6 +17,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class StringifyUtil {
 
@@ -33,11 +35,19 @@ public class StringifyUtil {
         generator.initialize();
     }
 
+    public List<Order> createObjectList(int count) {
+        List<Order> list = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            list.add(generator.generate("Order"));
+        }
+        return list;
+    }
+
     public void setupTestFileFor(long recordCount) throws IOException {
         int batchSize = 1000;
         int flushEveryNBatches = 10;
         long progressWindowSize = Math.min(50, recordCount / (batchSize + flushEveryNBatches));
-        boolean includeSchema = false;
+        boolean includeSchema = true;
         String outFileBatch = String.format("%d", recordCount);
         ProgressMonitor onBatchComplete = new ProgressMonitor(recordCount, batchSize, progressWindowSize);
         String outFileName = String.format("jsont-benchmark/target/marketplace_data-%s.jsont", outFileBatch);
@@ -52,7 +62,7 @@ public class StringifyUtil {
         }
     }
 
-    private StreamingJsonTWriter<Order> createStreamingWriter() {
+    public StreamingJsonTWriter<Order> createStreamingWriter() {
         return new StreamingJsonTWriterBuilder<Order>()
                 .registry(jsonTConfig.getAdapters())
                 .namespace(jsonTConfig.getNamespace())
