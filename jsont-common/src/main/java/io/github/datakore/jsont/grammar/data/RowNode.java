@@ -3,7 +3,7 @@ package io.github.datakore.jsont.grammar.data;
 import java.util.Map;
 
 public class RowNode implements ValueNode {
-    private final int index; // row number (0-based)
+    private long index; // row number (0-based)
     private final Map<String, Object> nodeMap; // positional values
 
     public RowNode(int index, Map<String, Object> values) {
@@ -11,7 +11,11 @@ public class RowNode implements ValueNode {
         this.nodeMap = values;
     }
 
-    public int getRowIndex() {
+    public void setIndex(long index) {
+        this.index = index;
+    }
+
+    public long getRowIndex() {
         return index;
     }
 

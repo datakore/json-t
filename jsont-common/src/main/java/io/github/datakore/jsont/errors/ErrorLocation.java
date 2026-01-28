@@ -3,7 +3,7 @@ package io.github.datakore.jsont.errors;
 import io.github.datakore.jsont.util.StringUtils;
 
 public class ErrorLocation {
-    int row;
+    long row;
     String location;
     private String field;
     private int column;
@@ -13,18 +13,18 @@ public class ErrorLocation {
         this.location = location;
     }
 
-    public ErrorLocation(int row, String schema) {
+    public ErrorLocation(long row, String schema) {
         this.row = row;
         this.schema = schema;
     }
 
-    public ErrorLocation(int row, int column, String fieldName) {
+    public ErrorLocation(long row, int column, String fieldName) {
         this.row = row;
         this.column = column;
         this.field = fieldName;
     }
 
-    public ErrorLocation(int row, int column, String fieldName, String nestedSchema) {
+    public ErrorLocation(long row, int column, String fieldName, String nestedSchema) {
         this.row = row;
         this.column = column;
         this.field = fieldName;
@@ -62,7 +62,7 @@ public class ErrorLocation {
         return sb.toString();
     }
 
-    public int row() {
+    public long row() {
         return row;
     }
 

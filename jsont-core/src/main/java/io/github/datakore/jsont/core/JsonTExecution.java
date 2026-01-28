@@ -1,181 +1,113 @@
 package io.github.datakore.jsont.core;
 
-import io.github.datakore.jsont.adapters.SchemaAdapter;
-import io.github.datakore.jsont.errors.ErrorLocation;
-import io.github.datakore.jsont.errors.Severity;
-import io.github.datakore.jsont.errors.ValidationError;
-import io.github.datakore.jsont.exception.SchemaException;
-import io.github.datakore.jsont.execution.CSVErrorLogger;
-import io.github.datakore.jsont.execution.DataPipeline;
-import io.github.datakore.jsont.execution.ParserExecutor;
+import io.github.datakore.jsont.chunk.DataRowRecord;
+import io.github.datakore.jsont.exception.ExecutionException;
 import io.github.datakore.jsont.grammar.data.RowNode;
-import io.github.datakore.jsont.grammar.schema.ast.FieldModel;
-import io.github.datakore.jsont.grammar.schema.ast.SchemaModel;
-import io.github.datakore.jsont.grammar.types.ArrayType;
-import io.github.datakore.jsont.grammar.types.ObjectType;
-import io.github.datakore.jsont.parser.DataRowVisitor;
+import io.github.datakore.jsont.pipeline.ConvertStage;
+import io.github.datakore.jsont.pipeline.ParseStage;
+import io.github.datakore.jsont.pipeline.ScanStage;
+import io.github.datakore.jsont.pipeline.ValidateStage;
+import io.github.datakore.jsont.util.ChunkContext;
 import io.github.datakore.jsont.util.StepCounter;
-import io.github.datakore.jsont.validator.SchemaValidator;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
+import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
+/**
+ * Manages the execution of the JsonT processing pipeline.
+ * <p>
+ * This class provides methods to parse, validate, and convert JsonT data.
+ * It is created via {@link JsonTConfig#source(Path)} or other source methods.
+ * </p>
+ */
 public class JsonTExecution {
 
     private final JsonTConfig config;
-    private final InputStream stream;
-    private Consumer<StepCounter> monitor;
+    private final Supplier<InputStream> streamSupplier;
+    private final ChunkContext chunkContext;
+    private final Consumer<StepCounter> monitor;
 
-    public JsonTExecution(JsonTConfig config, InputStream stream, Consumer<StepCounter> monitor) {
+    public JsonTExecution(JsonTConfig config, ChunkContext chunkContext, Path path, Consumer<StepCounter> monitor) {
+        this(config, chunkContext, () -> {
+            try {
+                return Files.newInputStream(path);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }, monitor);
+    }
+
+    public JsonTExecution(JsonTConfig config, ChunkContext chunkContext, Supplier<InputStream> streamSupplier, Consumer<StepCounter> monitor) {
         this.config = config;
-        this.stream = stream;
+        this.streamSupplier = streamSupplier;
         this.monitor = monitor;
+        this.chunkContext = chunkContext;
     }
 
+    /**
+     * Parses the JsonT data into a stream of {@link RowNode} objects.
+     *
+     * @param parallelism the number of parallel threads to use for parsing
+     * @return a {@link Flux} of parsed {@link RowNode}s
+     */
+    public Flux<RowNode> parse(int parallelism) {
+        return Flux.using(
+                () -> new BufferedInputStream(streamSupplier.get()),
+                stream -> {
+                    ScanStage scanStage = new ScanStage(stream, chunkContext, monitor);
+                    Flux<DataRowRecord> rawRecords = scanStage.execute(Flux.empty());
 
-    private static void validateRecord(Map<String, Object> map, SchemaModel schema) {
-        long requiredCount = schema.fields().stream()
-                .filter(f -> !f.isFieldOptional())
-                .count();
-
-        int actualCount = map.size();
-        int maxCount = schema.fields().size();
-
-        // Check 1: Underflow (Missing required fields)
-        if (actualCount < requiredCount) {
-            throw new SchemaException(String.format(
-                    "Data row underflow for %s: Expected at least %d fields, got %d",
-                    schema.name(), requiredCount, actualCount));
-        }
-
-        // Check 2: Overflow (Extra fields not in schema)
-        if (actualCount > maxCount) {
-            throw new SchemaException(String.format(
-                    "Data row overflow for %s: Expected max %d fields, got %d",
-                    schema.name(), maxCount, actualCount));
-        }
-    }
-
-    public Flux<RowNode> parse() {
-        return createBaseStream();
-    }
-
-    public Flux<RowNode> validate(Class<?> targetType, int parallelism) {
-        SchemaModel schema = config.namespaceT.findSchema(targetType.getSimpleName());
-        SchemaValidator validator = new SchemaValidator(config.namespaceT, config.errorCollector);
-        AtomicLong counter = new AtomicLong();
-
-        Flux<RowNode> validationFlux = parse()
-                .mapNotNull(map -> {
+                    // 2. Parse
+                    ParseStage parseStage = new ParseStage(config.errorCollector, chunkContext, monitor, parallelism);
+                    return parseStage.execute(rawRecords);
+                },
+                stream -> {
                     try {
-                        validator.validate(schema, map.getRowIndex(), map.values());
-                        if (monitor != null) {
-                            monitor.accept(new StepCounter("validate", counter.incrementAndGet()));
-                        }
-                        return map;
+                        stream.close();
                     } catch (Exception e) {
-                        return null;
+                        throw new ExecutionException("Error closing the stream", e);
                     }
-                });
-
-        if (parallelism > 1) {
-            return validationFlux.parallel(parallelism)
-                    .runOn(Schedulers.parallel())
-                    .sequential();
-        } else {
-            return validationFlux;
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> Flux<T> convert(Class<T> targetType, int parallelism) {
-        AtomicLong counter = new AtomicLong();
-        Flux<T> conversionFlux = validate(targetType, parallelism)
-                .map(map -> {
-                    SchemaModel schema = config.namespaceT.findSchema(targetType.getSimpleName());
-                    SchemaAdapter<?> adapter = config.adapterRegistry.resolve(schema.name());
-                    T result = (T) convertToType(map.values(), schema, adapter);
-                    if (monitor != null) {
-                        monitor.accept(new StepCounter("convert", counter.incrementAndGet()));
-                    }
-                    return result;
-                });
-
-        if (parallelism > 1) {
-            return conversionFlux.parallel(parallelism)
-                    .runOn(Schedulers.parallel())
-                    .sequential();
-        } else {
-            return conversionFlux;
-        }
-    }
-
-    private Flux<RowNode> createBaseStream() {
-        CSVErrorLogger errorLogger = new CSVErrorLogger(config.errorFile);
-        final DataPipeline pipeline = new DataPipeline(config.bufferSize, java.time.Duration.ofSeconds(1), errorLogger);
-        DataRowVisitor rowListener = new DataRowVisitor(config.errorCollector, config.namespaceT, pipeline);
-        AtomicLong counter = new AtomicLong();
-
-        // Start parsing in a separate thread
-        Mono.fromRunnable(() -> {
-                    try {
-                        ParserExecutor.executeDataParse(stream, config.errorCollector, rowListener);
-                    } catch (Exception e) {
-                        List<ValidationError> list = new ArrayList<>(1);
-                        ErrorLocation errorLoc = new ErrorLocation("Fatal error occured during parsing");
-                        list.add(new ValidationError(Severity.FATAL, "Fatal Exception", errorLoc));
-                        pipeline.onRowError(-1, list);
-                    }
-                }).subscribeOn(Schedulers.boundedElastic())
-                .subscribe();
-
-        // Return the Flux from the pipeline
-        return pipeline.rows().doOnNext(row -> {
-            if (monitor != null) {
-                monitor.accept(new StepCounter("parse", counter.incrementAndGet()));
-            }
-        });
-    }
-
-
-    @SuppressWarnings("unchecked")
-    private Object convertToType(Map<String, Object> map, SchemaModel schema, SchemaAdapter<?> adapter) {
-        Object object = adapter.createTarget();
-        for (int i = 0; i < schema.fields().size(); i++) {
-            FieldModel fm = schema.fields().get(i);
-            Object value = map.get(fm.getFieldName());
-            if (fm.getFieldType() instanceof ObjectType && value instanceof Map) {
-                ObjectType objectType = (ObjectType) fm.getFieldType();
-                SchemaModel nestedSchema = config.namespaceT.findSchema(objectType.type());
-                SchemaAdapter<?> nestedAdapter = config.adapterRegistry.resolve(nestedSchema.name());
-                value = convertToType((Map<String, Object>) value, nestedSchema, nestedAdapter);
-            }
-            if (fm.getFieldType() instanceof ArrayType && value instanceof List) {
-                ArrayType arrayType = (ArrayType) fm.getFieldType();
-                if (arrayType.getElementType() instanceof ObjectType) {
-                    int size = ((List<Map<String, Object>>) value).size();
-                    List<Object> listValue = new ArrayList<>(size);
-                    for (int j = 0; j < size; j++) {
-                        Object listElementValue = ((List<Map<String, Object>>) value).get(j);
-                        ObjectType objectType = (ObjectType) arrayType.getElementType();
-                        SchemaModel nestedSchema = config.namespaceT.findSchema(objectType.type());
-                        SchemaAdapter<?> nestedAdapter = config.adapterRegistry.resolve(nestedSchema.name());
-                        listElementValue = convertToType((Map<String, Object>) listElementValue, nestedSchema, nestedAdapter);
-                        listValue.add(listElementValue);
-                    }
-                    value = listValue;
                 }
-            }
-            adapter.set(object, fm.getFieldName(), value);
-        }
-        return object;
+        );
     }
 
+    /**
+     * Parses and validates the JsonT data against the schema.
+     *
+     * @param targetType  the target class type for validation context
+     * @param parallelism the number of parallel threads to use
+     * @return a {@link Flux} of validated {@link RowNode}s
+     */
+    public Flux<RowNode> validate(Class<?> targetType, int parallelism) {
+        // 1 & 2. Scan & Parse
+        Flux<RowNode> parsedRows = parse(parallelism);
+
+        // 3. Validate
+        ValidateStage validateStage = new ValidateStage(config.namespaceT, config.errorCollector, targetType, monitor, parallelism);
+        return validateStage.execute(parsedRows);
+    }
+
+    /**
+     * Parses, validates, and converts the JsonT data into objects of the specified type.
+     *
+     * @param targetType  the target class to convert the data into
+     * @param parallelism the number of parallel threads to use
+     * @param <T>         the type of the target class
+     * @return a {@link Flux} of converted objects
+     */
+    public <T> Flux<T> convert(Class<T> targetType, int parallelism) {
+        // 1, 2 & 3. Scan, Parse & Validate
+        Flux<RowNode> validatedRows = validate(targetType, parallelism);
+
+        // 4. Convert
+        ConvertStage<T> convertStage = new ConvertStage<>(config.namespaceT, config.adapterRegistry, targetType, monitor, parallelism);
+        return convertStage.execute(validatedRows);
+    }
 }

@@ -16,6 +16,7 @@ import io.github.datakore.jsont.grammar.schema.coded.BooleanEncodeDecoder;
 import io.github.datakore.jsont.grammar.schema.coded.NumberEncodeDecoder;
 import io.github.datakore.jsont.grammar.schema.coded.StringEncodeDecoder;
 import io.github.datakore.jsont.grammar.types.*;
+import io.github.datakore.jsont.util.ChunkContext;
 import io.github.datakore.jsont.util.StringUtils;
 import org.antlr.v4.runtime.misc.ParseCancellationException;
 
@@ -35,6 +36,16 @@ public final class DataRowVisitor extends SchemaCatalogVisitor {
     private final NumberEncodeDecoder numberDecoder = new NumberEncodeDecoder();
     private final StringEncodeDecoder stringDecoder = new StringEncodeDecoder();
     private SchemaModel dataSchema;
+
+    public DataRowVisitor(ErrorCollector errorCollector, ChunkContext chunkContext, DataStream pipeline) {
+        super(errorCollector);
+        this.pipeline = pipeline;
+        assert chunkContext != null;
+        assert chunkContext.getNamespace() != null;
+        assert chunkContext.getDataSchema() != null;
+        this.givenNamespace = chunkContext.getNamespace();
+        this.dataSchema = chunkContext.getDataSchema();
+    }
 
 
     public DataRowVisitor(ErrorCollector errorCollector, NamespaceT givenNamespace, DataStream stream) {
@@ -76,7 +87,7 @@ public final class DataRowVisitor extends SchemaCatalogVisitor {
 
     @Override
     public void exitDataSection(JsonTParser.DataSectionContext ctx) {
-        pipeline.onEOF();
+        if (pipeline != null) pipeline.onEOF();
     }
 
     @Override
@@ -136,10 +147,10 @@ public final class DataRowVisitor extends SchemaCatalogVisitor {
             // This was the root object, emit the row
             List<ValidationError> errors = super.getRowErrors();
             if (errors.stream().anyMatch(err -> err.severity().isFatal())) {
-                pipeline.onRowError(this.rowIndex.get(), errors);
+                if (pipeline != null) pipeline.onRowError(this.rowIndex.get(), errors);
             } else {
                 RowNode row = new RowNode(this.rowIndex.get(), completed.values);
-                pipeline.onRowParsed(row);
+                if (pipeline != null) pipeline.onRowParsed(row);
             }
         } else {
             // This was a nested object, add to parent

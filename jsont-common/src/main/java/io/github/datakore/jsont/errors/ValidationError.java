@@ -1,7 +1,7 @@
 package io.github.datakore.jsont.errors;
 
 public class ValidationError {
-    private final int rowIndex;
+    private final long rowIndex;
     private final String key;
     private final String message;
     private final String expected;
@@ -30,7 +30,7 @@ public class ValidationError {
         this.severity = Severity.WARNING;
     }
 
-    public int rowIndex() {
+    public long rowIndex() {
         return location != null ? location.row() : rowIndex;
     }
 

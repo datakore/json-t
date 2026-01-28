@@ -14,9 +14,10 @@ import io.github.datakore.marketplace.entity.Order;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class StringifyUtil {
 
@@ -33,26 +34,37 @@ public class StringifyUtil {
         generator.initialize();
     }
 
-    public void setupTestFileFor(long recordCount) throws IOException {
-        int batchSize = 1000;
+    public JsonTConfig getJsonTConfig() {
+        return jsonTConfig;
+    }
+
+    public List<Order> createObjectList(int count) {
+        List<Order> list = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            list.add(generator.generate("Order"));
+        }
+        return list;
+    }
+
+    public Path setupTestFileFor(long recordCount) throws IOException {
+        int batchSize = (int) Math.max(recordCount/100,1000);
         int flushEveryNBatches = 10;
         long progressWindowSize = Math.min(50, recordCount / (batchSize + flushEveryNBatches));
-        boolean includeSchema = false;
+        boolean includeSchema = true;
         String outFileBatch = String.format("%d", recordCount);
         ProgressMonitor onBatchComplete = new ProgressMonitor(recordCount, batchSize, progressWindowSize);
         String outFileName = String.format("jsont-benchmark/target/marketplace_data-%s.jsont", outFileBatch);
         File outFile = new File(outFileName);
-        System.out.println("Writing to " + outFile.getAbsolutePath());
         try (FileWriter writer = new FileWriter(outFile)) {
             StreamingJsonTWriter<Order> stringifier = createStreamingWriter();
             onBatchComplete.startProgress();
-            stringifier.stringify(writer, recordCount, batchSize, flushEveryNBatches, includeSchema, onBatchComplete);
+            stringifier.stringify(writer, recordCount, batchSize, flushEveryNBatches, false, onBatchComplete);
             onBatchComplete.endProgress();
-            System.out.println("Filename " + outFileName);
         }
+        return Paths.get(outFile.getAbsolutePath());
     }
 
-    private StreamingJsonTWriter<Order> createStreamingWriter() {
+    public StreamingJsonTWriter<Order> createStreamingWriter() {
         return new StreamingJsonTWriterBuilder<Order>()
                 .registry(jsonTConfig.getAdapters())
                 .namespace(jsonTConfig.getNamespace())
@@ -64,10 +76,8 @@ public class StringifyUtil {
         File schemaFile = new File(schemaPath);
         System.out.println("Schema file: " + schemaFile.getAbsolutePath());
         assert schemaFile.exists();
-        try (InputStream is = Files.newInputStream(Paths.get(schemaPath))) {
-            jsonTConfig = JsonT.configureBuilder().withAdapters(loadAdapters())
-                    .withErrorCollector(errorCollector).source(is).build();
-        }
+        jsonTConfig = JsonT.configureBuilder().withAdapters(loadAdapters())
+                .withErrorCollector(errorCollector).source(Paths.get(schemaPath)).build();
         assert jsonTConfig != null;
         assert jsonTConfig.getNamespace() != null;
     }
