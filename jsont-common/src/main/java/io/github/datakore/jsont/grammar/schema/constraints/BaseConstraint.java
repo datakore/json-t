@@ -48,7 +48,7 @@ public abstract class BaseConstraint implements FieldConstraint {
     }
 
     @Override
-    public ValidationError makeError(int rowIndex, FieldModel field, String errorMessage) {
+    public ValidationError makeError(long rowIndex, FieldModel field, String errorMessage) {
         ErrorLocation location = new ErrorLocation(rowIndex, field.getFieldIndex(), field.getFieldName(), field.getSchema());
         return new ValidationError(Severity.FIELD_ERROR, errorMessage, location);
     }

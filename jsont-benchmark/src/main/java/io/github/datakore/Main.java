@@ -6,6 +6,7 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import io.github.datakore.jsont.stringify.StreamingJsonTWriter;
+import io.github.datakore.marketplace.OrderParserTest;
 import io.github.datakore.marketplace.StringifyUtil;
 import io.github.datakore.marketplace.entity.Order;
 import org.openjdk.jmh.runner.RunnerException;
@@ -25,29 +26,16 @@ public class Main {
     }
 
     public static void main(String[] args) throws IOException, RunnerException {
-//        Options opt = new OptionsBuilder()
-//                .include(JsonTBenchmark.class.getSimpleName())
-//                .forks(1)
-//                .jvmArgs(
-//                        "-Xms4G",
-//                        "-Xmx4G",
-//                        "-XX:+UseZGC",
-//                        "-XX:+ZGenerational"
-//                )
-//                .build();
-//
-//        new Runner(opt).run();
-        Main main = new Main();
-        main.compareStringifySizes(1);
-        main.compareStringifySizes(10);
-//        main.compareStringifySizes(100);
-//        main.compareStringifySizes(1_000);
-//        main.compareStringifySizes(10_000);
-//        main.compareStringifySizes(100_000);
-//        main.compareStringifySizes(200_000);
-//        main.compareStringifySizes(500_000);
-//        main.compareStringifySizes(1_000_000);
+        OrderParserTest orderParserTest = new OrderParserTest();
+        orderParserTest.parseOrderRecords(1);
+        orderParserTest.parseOrderRecords(10);
+        orderParserTest.parseOrderRecords(100);
+        orderParserTest.parseOrderRecords(1_000);
+        orderParserTest.parseOrderRecords(10_000);
+        orderParserTest.parseOrderRecords(100_000);
+        orderParserTest.parseOrderRecords(1_000_000);
     }
+
     StringifyUtil util = new StringifyUtil();
     StreamingJsonTWriter<Order> jsontStringifier = util.createStreamingWriter();
     Gson gson = new GsonBuilder().setPrettyPrinting().registerTypeAdapter(LocalDate.class, new LocalDateAdapter()).create();

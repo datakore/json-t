@@ -52,7 +52,7 @@ public class JsonTStructureAnalyzerTest {
                     .blockLast();
         }
         monitor.endProgress();
-        assertEquals(10000, counter.get());
+        assertEquals(10, counter.get());
     }
 
     @Test

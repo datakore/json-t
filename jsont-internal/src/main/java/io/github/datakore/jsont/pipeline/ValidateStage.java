@@ -10,7 +10,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.ParallelFlux;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -40,12 +40,13 @@ public class ValidateStage implements PipelineStage<RowNode, RowNode> {
                 .map(row -> {
                     try {
                         validator.validate(schema, row.getRowIndex(), row.values());
-                        return row;
+                        return Optional.of(row);
                     } catch (Exception e) {
-                        return null;
+                        return Optional.<RowNode>empty();
                     }
                 })
-                .filter(Objects::nonNull) // Filter out invalid rows
+                .filter(Optional::isPresent)
+                .map(Optional::get)
                 .doOnNext(row -> monitor(monitor, "validate", counter.incrementAndGet()));
 
         return parallelFlux.sequential();

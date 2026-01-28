@@ -34,7 +34,7 @@ public interface FieldConstraint {
 
     String checkConstraint(Object value);
 
-    ValidationError makeError(int rowIndex, FieldModel field, String errorMessage);
+    ValidationError makeError(long rowIndex, FieldModel field, String errorMessage);
 
     enum ConstraitType {
         AllowNullElements("allowNulls", AllowNullElementsConstraint.class),

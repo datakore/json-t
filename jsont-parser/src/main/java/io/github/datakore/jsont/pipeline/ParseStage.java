@@ -17,6 +17,7 @@ import reactor.core.scheduler.Schedulers;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -58,16 +59,17 @@ public class ParseStage implements PipelineStage<DataRowRecord, RowNode> {
                 .parallel(parallelism)
                 .runOn(Schedulers.parallel())
                 .map(this::parseRecord)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
                 .doOnNext(
                         row -> {
-                            System.out.println("(parse) Record number " + counter.get() + 1 + " , content " + row.values().toString());
                             monitor(monitor, "parse", counter.incrementAndGet());
                         });
 
         return parallelFlux.sequential();
     }
 
-    private RowNode parseRecord(DataRowRecord record) {
+    private Optional<RowNode> parseRecord(DataRowRecord record) {
         RowNodeCaptureDataPipeline capture = new RowNodeCaptureDataPipeline();
         DataRowVisitor visitor = new DataRowVisitor(errorCollector, chunkContext, capture);
         ParserContext ctx = parserThreadLocal.get();
@@ -80,7 +82,12 @@ public class ParseStage implements PipelineStage<DataRowRecord, RowNode> {
         if (capture.hasError()) {
             throw new DataException("Error parsing record: " + capture.getError());
         }
-        return capture.getResult();
+        if (capture.getResult() != null) {
+            capture.getResult().setIndex(record.getRowIndex());
+            return Optional.of(capture.getResult());
+        } else {
+            return Optional.empty();
+        }
     }
 
     private void resetContext(ParserContext ctx, ByteArrayInputStream bais, DataRowVisitor visitor) {

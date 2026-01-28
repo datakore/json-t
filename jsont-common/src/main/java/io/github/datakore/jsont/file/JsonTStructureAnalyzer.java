@@ -2,10 +2,13 @@ package io.github.datakore.jsont.file;
 
 import io.github.datakore.jsont.chunk.AnalysisResult;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.regex.Matcher;
@@ -19,29 +22,60 @@ public class JsonTStructureAnalyzer {
     // Regex to find "data :" or "data:" followed by "["
     private static final Pattern DATA_ARRAY_START_PATTERN = Pattern.compile("data\\s*:\\s*\\[");
 
+    /**
+     * Reads all bytes from an input stream and returns them as a byte array.
+     * This is a Java 8 compatible replacement for InputStream.readAllBytes().
+     *
+     * @param inputStream the input stream to read from
+     * @return a byte array containing all bytes from the stream
+     * @throws IOException if an I/O error occurs
+     */
+    public static byte[] readAllBytes(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        byte[] buffer = new byte[4096];
+        int bytesRead;
+        while ((bytesRead = inputStream.read(buffer)) != -1) {
+            baos.write(buffer, 0, bytesRead);
+        }
+        return baos.toByteArray();
+    }
+
     public AnalysisResult analyze(Path filePath) throws IOException {
-        try (FileChannel channel = FileChannel.open(filePath, StandardOpenOption.READ)) {
-
-            // Allocate peek buffer
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
-            channel.read(buffer);
-            buffer.flip();
-
-            String peekHeader = StandardCharsets.UTF_8.decode(buffer).toString();
-            Matcher nsMatcher = NS_START.matcher(peekHeader);
-            Matcher dataMatcher = DATA_BLOCK_START.matcher(peekHeader);
-
-            if (nsMatcher.find()) {
-                return analyzeFullDocument(channel, nsMatcher.start());
-            } else if (dataMatcher.find()) {
-                return analyzeDataBlock(channel, dataMatcher.start(), null);
-            } else {
-                return new AnalysisResult(AnalysisResult.FileVariant.FRAGMENT, null, null, 0);
-            }
+        try (SeekableByteChannel channel = Files.newByteChannel(filePath, StandardOpenOption.READ)) {
+            return analyze(channel);
         }
     }
 
-    private AnalysisResult analyzeFullDocument(FileChannel channel, long startOffset) throws IOException {
+    public AnalysisResult analyze(InputStream inputStream) throws IOException {
+        // Read the stream into memory to allow seeking. This is necessary because the analyzer
+        // needs to jump back and forth, which a generic InputStream does not support.
+        byte[] bytes = readAllBytes(inputStream);
+        try (SeekableByteChannel channel = new InMemorySeekableByteChannel(bytes)) {
+            return analyze(channel);
+        }
+    }
+
+    public AnalysisResult analyze(SeekableByteChannel channel) throws IOException {
+        // Allocate peek buffer
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        long initialPosition = channel.position();
+        channel.read(buffer);
+        buffer.flip();
+
+        String peekHeader = StandardCharsets.UTF_8.decode(buffer).toString();
+        Matcher nsMatcher = NS_START.matcher(peekHeader);
+        Matcher dataMatcher = DATA_BLOCK_START.matcher(peekHeader);
+
+        if (nsMatcher.find()) {
+            return analyzeFullDocument(channel, initialPosition + nsMatcher.start());
+        } else if (dataMatcher.find()) {
+            return analyzeDataBlock(channel, initialPosition + dataMatcher.start(), null);
+        } else {
+            return new AnalysisResult(AnalysisResult.FileVariant.FRAGMENT, null, null, 0);
+        }
+    }
+
+    private AnalysisResult analyzeFullDocument(SeekableByteChannel channel, long startOffset) throws IOException {
         BlockRegion nsRegion = readUntilBalancedBrace(channel, startOffset);
         String nsBlock = nsRegion.content;
 
@@ -63,7 +97,7 @@ public class JsonTStructureAnalyzer {
         return new AnalysisResult(AnalysisResult.FileVariant.SCHEMA_ONLY, nsBlock, null, -1);
     }
 
-    private AnalysisResult analyzeDataBlock(FileChannel channel, long startOffset, String existingNamespace) throws IOException {
+    private AnalysisResult analyzeDataBlock(SeekableByteChannel channel, long startOffset, String existingNamespace) throws IOException {
         DataStartFinder finder = findDataArrayStart(channel, startOffset);
         return new AnalysisResult(
                 existingNamespace == null ? AnalysisResult.FileVariant.DATA_BLOCK : AnalysisResult.FileVariant.FULL_DOCUMENT,
@@ -85,7 +119,7 @@ public class JsonTStructureAnalyzer {
         }
     }
 
-    private BlockRegion readUntilBalancedBrace(FileChannel channel, long startOffset) throws IOException {
+    private BlockRegion readUntilBalancedBrace(SeekableByteChannel channel, long startOffset) throws IOException {
         StringBuilder sb = new StringBuilder();
         ByteBuffer buffer = ByteBuffer.allocate(8192);
         channel.position(startOffset);
@@ -134,7 +168,7 @@ public class JsonTStructureAnalyzer {
         }
     }
 
-    private DataStartFinder findDataArrayStart(FileChannel channel, long startOffset) throws IOException {
+    private DataStartFinder findDataArrayStart(SeekableByteChannel channel, long startOffset) throws IOException {
         StringBuilder sb = new StringBuilder();
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         channel.position(startOffset);

@@ -44,7 +44,6 @@ public class ScanStage implements PipelineStage<Void, DataRowRecord> {
                                 DataRowRecord record = buffer.next();
                                 if (record != null) {
                                     sink.next(record);
-                                    System.out.println("Scan stage - record no " + record.getRowIndex() + " , content: " + new String(record.getData()));
                                     monitor(monitor, "scan", record.getRowIndex());
                                 } else {
                                     sink.complete();
@@ -55,9 +54,6 @@ public class ScanStage implements PipelineStage<Void, DataRowRecord> {
                         })
                 , buffer -> {
                     try {
-                        if (inputStream != null) {
-                            inputStream.close();
-                        }
                         buffer.close();
                     } catch (IOException e) {
                         // Log but don't throw

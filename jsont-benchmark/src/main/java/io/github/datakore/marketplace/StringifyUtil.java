@@ -14,6 +14,7 @@ import io.github.datakore.marketplace.entity.Order;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,10 @@ public class StringifyUtil {
         generator.initialize();
     }
 
+    public JsonTConfig getJsonTConfig() {
+        return jsonTConfig;
+    }
+
     public List<Order> createObjectList(int count) {
         List<Order> list = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
@@ -41,8 +46,8 @@ public class StringifyUtil {
         return list;
     }
 
-    public void setupTestFileFor(long recordCount) throws IOException {
-        int batchSize = 1000;
+    public Path setupTestFileFor(long recordCount) throws IOException {
+        int batchSize = (int) Math.max(recordCount/100,1000);
         int flushEveryNBatches = 10;
         long progressWindowSize = Math.min(50, recordCount / (batchSize + flushEveryNBatches));
         boolean includeSchema = true;
@@ -50,14 +55,13 @@ public class StringifyUtil {
         ProgressMonitor onBatchComplete = new ProgressMonitor(recordCount, batchSize, progressWindowSize);
         String outFileName = String.format("jsont-benchmark/target/marketplace_data-%s.jsont", outFileBatch);
         File outFile = new File(outFileName);
-        System.out.println("Writing to " + outFile.getAbsolutePath());
         try (FileWriter writer = new FileWriter(outFile)) {
             StreamingJsonTWriter<Order> stringifier = createStreamingWriter();
             onBatchComplete.startProgress();
-            stringifier.stringify(writer, recordCount, batchSize, flushEveryNBatches, includeSchema, onBatchComplete);
+            stringifier.stringify(writer, recordCount, batchSize, flushEveryNBatches, false, onBatchComplete);
             onBatchComplete.endProgress();
-            System.out.println("Filename " + outFileName);
         }
+        return Paths.get(outFile.getAbsolutePath());
     }
 
     public StreamingJsonTWriter<Order> createStreamingWriter() {

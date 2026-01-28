@@ -25,7 +25,7 @@ public class SchemaValidator {
         this.errorCollector = errorCollector;
     }
 
-    public void validate(SchemaModel schema, int rowIndex, Map<String, Object> rowObject) {
+    public void validate(SchemaModel schema, long rowIndex, Map<String, Object> rowObject) {
         if (rowObject == null) return;
         AtomicInteger errorCount = new AtomicInteger(0);
         validateInternal(schema, rowIndex, rowObject, errorCount);
@@ -35,7 +35,7 @@ public class SchemaValidator {
     }
 
     @SuppressWarnings("unchecked")
-    private void validateInternal(SchemaModel schema, int rowIndex, Map<String, Object> rowObject, AtomicInteger errorCount) {
+    private void validateInternal(SchemaModel schema, long rowIndex, Map<String, Object> rowObject, AtomicInteger errorCount) {
         for (FieldModel field : schema.fields()) {
             Object value = rowObject.get(field.getFieldName());
 
@@ -71,7 +71,7 @@ public class SchemaValidator {
         }
     }
 
-    private void reportError(int rowIndex, FieldModel field, String message) {
+    private void reportError(long rowIndex, FieldModel field, String message) {
         errorCollector.report(new ValidationError(
                 Severity.FIELD_ERROR,
                 message,
