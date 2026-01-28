@@ -15,6 +15,7 @@ public class StreamingJsonTWriterBuilder<T> {
     }
 
     public StreamingJsonTWriterBuilder<T> namespace(NamespaceT namespace) {
+        assert namespace != null;
         this.namespace = namespace;
         return this;
     }

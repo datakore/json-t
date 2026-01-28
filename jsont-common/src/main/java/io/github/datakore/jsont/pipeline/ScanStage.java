@@ -16,10 +16,9 @@ public class ScanStage implements PipelineStage<Void, DataRowRecord> {
     private final InputStream inputStream;
     private final Consumer<StepCounter> monitor;
     private final ChunkContext chunkContext;
-    private final int batchSize;
 
 
-    public ScanStage(InputStream inputStream, ChunkContext chunkContext, Consumer<StepCounter> monitor, int batchSize) {
+    public ScanStage(InputStream inputStream, ChunkContext chunkContext, Consumer<StepCounter> monitor) {
         assert inputStream != null;
         this.inputStream = inputStream;
         assert chunkContext != null;
@@ -27,7 +26,6 @@ public class ScanStage implements PipelineStage<Void, DataRowRecord> {
         assert chunkContext.getDataSchema() != null;
         this.chunkContext = chunkContext;
         this.monitor = monitor;
-        this.batchSize = batchSize;
     }
 
     @Override
@@ -46,6 +44,7 @@ public class ScanStage implements PipelineStage<Void, DataRowRecord> {
                                 DataRowRecord record = buffer.next();
                                 if (record != null) {
                                     sink.next(record);
+                                    System.out.println("Scan stage - record no " + record.getRowIndex() + " , content: " + new String(record.getData()));
                                     monitor(monitor, "scan", record.getRowIndex());
                                 } else {
                                     sink.complete();
@@ -56,6 +55,9 @@ public class ScanStage implements PipelineStage<Void, DataRowRecord> {
                         })
                 , buffer -> {
                     try {
+                        if (inputStream != null) {
+                            inputStream.close();
+                        }
                         buffer.close();
                     } catch (IOException e) {
                         // Log but don't throw

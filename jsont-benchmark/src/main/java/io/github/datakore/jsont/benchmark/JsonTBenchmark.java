@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Benchmark)
@@ -53,8 +54,8 @@ public class JsonTBenchmark {
             jsonTConfig = JsonT.configureBuilder()
                     .withAdapters(loadAdapters())
                     .withErrorCollector(errorCollector)
-                    .source(is)
                     .build();
+            // jsonTConfig.source(is).parse()
         }
 
     }
@@ -88,11 +89,13 @@ public class JsonTBenchmark {
         String dataFile = String.format("jsont-benchmark/target/marketplace_data-%d.jsont", recordCount);
         File file = new File(dataFile);
         assert file.exists();
-        try (InputStream is = Files.newInputStream(file.toPath())) {
-            this.jsonTConfig.source(is)
+        try {
+            this.jsonTConfig.source(Paths.get(dataFile))
                     .convert(Order.class, 1)
                     .count()
                     .block();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

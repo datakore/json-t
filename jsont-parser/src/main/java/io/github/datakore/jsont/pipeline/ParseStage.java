@@ -58,7 +58,11 @@ public class ParseStage implements PipelineStage<DataRowRecord, RowNode> {
                 .parallel(parallelism)
                 .runOn(Schedulers.parallel())
                 .map(this::parseRecord)
-                .doOnNext(row -> monitor(monitor, "parse", counter.incrementAndGet()));
+                .doOnNext(
+                        row -> {
+                            System.out.println("(parse) Record number " + counter.get() + 1 + " , content " + row.values().toString());
+                            monitor(monitor, "parse", counter.incrementAndGet());
+                        });
 
         return parallelFlux.sequential();
     }

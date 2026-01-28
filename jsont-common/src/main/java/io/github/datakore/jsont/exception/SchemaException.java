@@ -1,6 +1,6 @@
 package io.github.datakore.jsont.exception;
 
-public class SchemaException extends RuntimeException {
+public class SchemaException extends JsonTException {
     public SchemaException(String message) {
         super(message);
     }

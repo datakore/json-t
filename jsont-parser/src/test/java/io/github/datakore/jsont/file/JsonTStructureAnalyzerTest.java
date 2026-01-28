@@ -46,7 +46,7 @@ public class JsonTStructureAnalyzerTest {
         ProgressMonitor monitor = new ProgressMonitor(10000, 2, 10, true);
         monitor.startProgress();
         try (InputStream inputStream = Files.newInputStream(Paths.get(path))) {
-            ScanStage stage = new ScanStage(inputStream, chunkContext, monitor, 2);
+            ScanStage stage = new ScanStage(inputStream, chunkContext, monitor);
             stage.execute(null)
                     .doOnNext(record -> counter.incrementAndGet())
                     .blockLast();
@@ -68,10 +68,10 @@ public class JsonTStructureAnalyzerTest {
         ChunkContext chunkContext = ParserExecutor.validateDataSchema(dataResult, ns);
         AtomicLong counter = new AtomicLong();
         int batchSize = 10000;
-        ProgressMonitor monitor = new ProgressMonitor(totalRecords, batchSize, 50,true);
+        ProgressMonitor monitor = new ProgressMonitor(totalRecords, batchSize, 50, true);
         monitor.startProgress();
         try (InputStream inputStream = Files.newInputStream(Paths.get(String.format(path, totalRecords)))) {
-            ScanStage stage = new ScanStage(inputStream, chunkContext, monitor, batchSize);
+            ScanStage stage = new ScanStage(inputStream, chunkContext, monitor);
             ParseStage stage2 = new ParseStage(errorCollector, chunkContext, monitor, 4);
             stage2.execute(stage.execute(null))
                     .doOnNext(record -> {

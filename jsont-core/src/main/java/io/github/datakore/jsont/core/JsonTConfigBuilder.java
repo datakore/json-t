@@ -49,10 +49,13 @@ public class JsonTConfigBuilder {
             }
             SchemaModel dataSchema = null;
             if (AnalysisResult.FileVariant.FULL_DOCUMENT == analysisResult.getVariant()) {
+                if (namespaceT == null) {
+                    throw new SchemaException("Input source must contain schema");
+                }
                 dataSchema = namespaceT.findSchema(analysisResult.getDataSchemaName());
-            }
-            if (namespaceT != null) {
-                throw new SchemaException("Input source must contain schema");
+                if (dataSchema == null) {
+                    throw new SchemaException("Unknown data schema" + analysisResult.getDataSchemaName());
+                }
             }
             context = new ChunkContext(namespaceT, dataSchema, analysisResult.getDataStartOffset());
             return this;

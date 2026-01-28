@@ -14,8 +14,6 @@ import io.github.datakore.marketplace.entity.Order;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,10 +72,8 @@ public class StringifyUtil {
         File schemaFile = new File(schemaPath);
         System.out.println("Schema file: " + schemaFile.getAbsolutePath());
         assert schemaFile.exists();
-        try (InputStream is = Files.newInputStream(Paths.get(schemaPath))) {
-            jsonTConfig = JsonT.configureBuilder().withAdapters(loadAdapters())
-                    .withErrorCollector(errorCollector).source(is).build();
-        }
+        jsonTConfig = JsonT.configureBuilder().withAdapters(loadAdapters())
+                .withErrorCollector(errorCollector).source(Paths.get(schemaPath)).build();
         assert jsonTConfig != null;
         assert jsonTConfig.getNamespace() != null;
     }
