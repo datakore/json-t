@@ -15,7 +15,9 @@ import io.github.datakore.jsont.model.JsonTSchema;
 import io.github.datakore.jsont.model.JsonTString;
 import io.github.datakore.jsont.model.JsonTValidationBlock;
 import io.github.datakore.jsont.model.JsonTValue;
+import io.github.datakore.jsont.model.JsonTRule;
 import io.github.datakore.jsont.model.ScalarType;
+import io.github.datakore.jsont.model.EvalContext;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -55,6 +57,14 @@ public final class ValidationPipeline {
     /** Registry for resolving nested object schema references during promotion. */
     private final SchemaResolver registry;
 
+    // Pre-computed at build time — eliminate per-row collectFieldRefs + HashSet allocations.
+    /** Positions in {@link #fields} of every field referenced by any validation rule. */
+    private final int[]    ruleBindingPositions;
+    /** Corresponding field names (EvalContext keys) for {@link #ruleBindingPositions}. */
+    private final String[] ruleBindingKeys;
+    /** Per unique-key group: position of each field in {@link #fields}. */
+    private final int[][]  uniqueKeyPositions;
+
     ValidationPipeline(List<JsonTField> fields,
             JsonTValidationBlock validation,
             String schemaName,
@@ -71,6 +81,53 @@ public final class ValidationPipeline {
         this.bufferCapacity = bufferCapacity;
         this.cryptoContext = cryptoContext;
         this.registry = registry;
+
+        // ── Pre-compute rule + unique-key binding positions ───────────────────
+        if (validation != null && !this.fields.isEmpty()) {
+            // Union of all field names needed by every rule (expression refs + required fields).
+            // LinkedHashSet preserves a stable order so array indices are deterministic.
+            java.util.LinkedHashSet<String> needed = new java.util.LinkedHashSet<>();
+            for (JsonTRule rule : validation.rules()) {
+                if (rule instanceof JsonTRule.Expression e) {
+                    needed.addAll(io.github.datakore.jsont.internal.validate.RuleChecker.collectFieldRefs(e.expr()));
+                } else if (rule instanceof JsonTRule.ConditionalRequirement cr) {
+                    needed.addAll(io.github.datakore.jsont.internal.validate.RuleChecker.collectFieldRefs(cr.condition()));
+                    for (FieldPath fp : cr.requiredFields()) needed.add(fp.dotJoined());
+                }
+            }
+            List<Integer> posList  = new ArrayList<>();
+            List<String>  keysList = new ArrayList<>();
+            for (String name : needed) {
+                for (int i = 0; i < this.fields.size(); i++) {
+                    if (this.fields.get(i).name().equals(name)) {
+                        posList.add(i);
+                        keysList.add(name);
+                        break;
+                    }
+                }
+            }
+            ruleBindingPositions = posList.stream().mapToInt(Integer::intValue).toArray();
+            ruleBindingKeys      = keysList.toArray(new String[0]);
+
+            // Unique key positions: one int[] per group, each entry is the field index.
+            int[][] ukp = new int[validation.uniqueKeys().size()][];
+            for (int g = 0; g < validation.uniqueKeys().size(); g++) {
+                List<FieldPath> group = validation.uniqueKeys().get(g);
+                ukp[g] = new int[group.size()];
+                for (int j = 0; j < group.size(); j++) {
+                    String name = group.get(j).dotJoined();
+                    ukp[g][j] = -1;
+                    for (int i = 0; i < this.fields.size(); i++) {
+                        if (this.fields.get(i).name().equals(name)) { ukp[g][j] = i; break; }
+                    }
+                }
+            }
+            uniqueKeyPositions = ukp;
+        } else {
+            ruleBindingPositions = new int[0];
+            ruleBindingKeys      = new String[0];
+            uniqueKeyPositions   = new int[0][];
+        }
     }
 
     /** Returns the {@link io.github.datakore.jsont.crypto.CryptoContext} if configured, or {@code null}. */
@@ -121,17 +178,17 @@ public final class ValidationPipeline {
 
                 boolean hasFatal = rowEvents.stream().anyMatch(DiagnosticEvent::isFatal);
 
-                // Rules
+                // Rules — fast path: pre-built EvalContext, no per-row AST traversal
                 if (!hasFatal && validation != null) {
-                    rowEvents.addAll(RuleChecker.checkRules(fields, validation, row.values(), idx));
+                    rowEvents.addAll(RuleChecker.checkRulesWithContext(
+                            validation, buildRuleContext(row.values()), idx));
                 }
 
-                // Uniqueness
+                // Uniqueness — fast path: pre-computed positional indices
                 hasFatal = rowEvents.stream().anyMatch(DiagnosticEvent::isFatal);
                 if (!hasFatal && validation != null) {
-                    for (int ui = 0; ui < validation.uniqueKeys().size(); ui++) {
-                        List<FieldPath> group = validation.uniqueKeys().get(ui);
-                        List<String> key = buildUniqueKey(group, fields, row.values());
+                    for (int ui = 0; ui < uniqueKeyPositions.length; ui++) {
+                        List<String> key = buildUniqueKeyFast(uniqueKeyPositions[ui], row.values());
                         if (!uniqueSets.get(ui).add(key)) {
                             rowEvents.add(DiagnosticEvent.fatal(
                                     new DiagnosticEventKind.UniqueViolation(key, idx))
@@ -206,7 +263,8 @@ public final class ValidationPipeline {
             boolean hasFatal = rowEvents.stream().anyMatch(DiagnosticEvent::isFatal);
 
             if (!hasFatal && validation != null) {
-                rowEvents.addAll(RuleChecker.checkRules(fields, validation, row.values(), idx));
+                rowEvents.addAll(RuleChecker.checkRulesWithContext(
+                        validation, buildRuleContext(row.values()), idx));
             }
         }
 
@@ -330,12 +388,13 @@ public final class ValidationPipeline {
             }
             boolean hasFatal = rowEvents.stream().anyMatch(DiagnosticEvent::isFatal);
             if (!hasFatal && validation != null) {
-                rowEvents.addAll(RuleChecker.checkRules(fields, validation, row.values(), idx));
+                rowEvents.addAll(RuleChecker.checkRulesWithContext(
+                        validation, buildRuleContext(row.values()), idx));
             }
             hasFatal = rowEvents.stream().anyMatch(DiagnosticEvent::isFatal);
             if (!hasFatal && validation != null && !uniqueSets.isEmpty()) {
-                for (int ui = 0; ui < validation.uniqueKeys().size(); ui++) {
-                    List<String> key = buildUniqueKey(validation.uniqueKeys().get(ui), fields, row.values());
+                for (int ui = 0; ui < uniqueKeyPositions.length; ui++) {
+                    List<String> key = buildUniqueKeyFast(uniqueKeyPositions[ui], row.values());
                     if (!uniqueSets.get(ui).add(key)) {
                         rowEvents.add(DiagnosticEvent.fatal(
                                 new DiagnosticEventKind.UniqueViolation(key, idx))
@@ -456,6 +515,29 @@ public final class ValidationPipeline {
         for (DiagnosticSink sink : sinks) {
             sink.emit(event);
         }
+    }
+
+    /** Builds an EvalContext from pre-computed rule binding positions — O(refs), not O(fields). */
+    private EvalContext buildRuleContext(List<JsonTValue> values) {
+        EvalContext ctx = EvalContext.create();
+        for (int i = 0; i < ruleBindingPositions.length; i++) {
+            int pos = ruleBindingPositions[i];
+            if (pos >= 0 && pos < values.size()) {
+                ctx.bind(ruleBindingKeys[i], values.get(pos));
+            }
+        }
+        return ctx;
+    }
+
+    /** Builds a unique key from pre-computed field positions — O(group size), not O(fields). */
+    private List<String> buildUniqueKeyFast(int[] positions, List<JsonTValue> values) {
+        List<String> key = new ArrayList<>(positions.length);
+        for (int pos : positions) {
+            key.add(pos >= 0 && pos < values.size()
+                    ? ConstraintChecker.describeValue(values.get(pos))
+                    : "null");
+        }
+        return key;
     }
 
     private List<String> buildUniqueKey(List<FieldPath> group, List<JsonTField> fieldList, List<JsonTValue> values) {

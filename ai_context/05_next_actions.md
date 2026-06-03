@@ -3,6 +3,8 @@
 ## P0 — Adoption Critical
 
 1. ~~JSON interoperability~~ ✅ Complete
+2. Implement Enterprise-Grade Security at parse level, that is, assuming we have whitelisted characters for String, Number, Boolean, only the whitelisted characters are allowed in the input text.  If there's any other character in the input text, throw an error, and report the error message along with row number, column number, and the character that caused the error
+3. Schema Level restrictions - that is, max fields per schema, max schemas/enums per catalog, max length for schema or field identifiers.  Max depth allowed in any schema or catalog or namespace.  System shall have default limits, but they can be configured via a configuration file.
 
 ---
 

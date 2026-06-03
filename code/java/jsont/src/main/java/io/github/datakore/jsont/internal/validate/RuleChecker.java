@@ -20,6 +20,24 @@ import java.util.Set;
 
 public class RuleChecker {
 
+    /**
+     * Fast path: evaluates all rules against a pre-built {@link EvalContext}.
+     *
+     * <p>The caller (typically {@link io.github.datakore.jsont.validate.ValidationPipeline})
+     * constructs the context once per row from pre-computed positional bindings computed at
+     * pipeline build time — no per-row AST traversal or O(F) field scan.
+     */
+    public static List<DiagnosticEvent> checkRulesWithContext(
+            JsonTValidationBlock validation,
+            EvalContext ctx,
+            int rowIndex) {
+        List<DiagnosticEvent> events = new ArrayList<>();
+        for (JsonTRule rule : validation.rules()) {
+            evaluateRule(rule, ctx, events, rowIndex);
+        }
+        return events;
+    }
+
     public static List<DiagnosticEvent> checkRules(
             List<JsonTField> fields,
             JsonTValidationBlock validation,
@@ -47,67 +65,69 @@ public class RuleChecker {
             if (needed.contains(name)) ctx.bind(name, rowValues.get(i));
         }
 
-        // Evaluate each rule — dispatch on JsonTRule variant
         for (JsonTRule rule : validation.rules()) {
-            if (rule instanceof JsonTRule.Expression e) {
-                try {
-                    JsonTValue result = e.expr().evaluate(ctx);
-                    if (result instanceof JsonTValue.Bool b) {
-                        if (!b.value()) {
-                            events.add(DiagnosticEvent.warning(
-                                    new DiagnosticEventKind.RuleViolation(
-                                            stringifyExpr(e.expr()),
-                                            "expression evaluated to false"))
-                                    .atRow(rowIndex));
-                        }
-                        // true = OK, no event
-                    } else {
-                        events.add(DiagnosticEvent.warning(
-                                new DiagnosticEventKind.RuleViolation(
-                                        stringifyExpr(e.expr()),
-                                        "non-boolean result: " + typeName(result)))
-                                .atRow(rowIndex));
-                    }
-                } catch (JsonTError.Eval err) {
-                    events.add(DiagnosticEvent.warning(
-                            new DiagnosticEventKind.RuleViolation(
-                                    stringifyExpr(e.expr()),
-                                    "evaluation error: " + err.getMessage()))
-                            .atRow(rowIndex));
-                }
-            } else if (rule instanceof JsonTRule.ConditionalRequirement cr) {
-                // Evaluate the condition; if true, all requiredFields must be non-null/non-unspecified
-                try {
-                    JsonTValue condResult = cr.condition().evaluate(ctx);
-                    if (condResult instanceof JsonTValue.Bool b && b.value()) {
-                        List<String> missing = new ArrayList<>();
-                        for (FieldPath fp : cr.requiredFields()) {
-                            String name = fp.dotJoined();
-                            JsonTValue val = ctx.lookup(name).orElse(null);
-                            if (val == null || val instanceof JsonTValue.Null
-                                    || val instanceof JsonTValue.Unspecified) {
-                                missing.add(name);
-                            }
-                        }
-                        if (!missing.isEmpty()) {
-                            events.add(DiagnosticEvent.fatal(
-                                    new DiagnosticEventKind.ConditionalRequirementViolation(
-                                            stringifyExpr(cr.condition()), missing))
-                                    .atRow(rowIndex));
-                        }
-                    }
-                    // condition false or non-bool → no violation
-                } catch (JsonTError.Eval err) {
-                    events.add(DiagnosticEvent.warning(
-                            new DiagnosticEventKind.RuleViolation(
-                                    stringifyExpr(cr.condition()),
-                                    "condition evaluation error: " + err.getMessage()))
-                            .atRow(rowIndex));
-                }
-            }
+            evaluateRule(rule, ctx, events, rowIndex);
         }
 
         return events;
+    }
+
+    /** Evaluates a single rule against an already-built context. Shared by both call sites. */
+    private static void evaluateRule(JsonTRule rule, EvalContext ctx,
+                                     List<DiagnosticEvent> events, int rowIndex) {
+        if (rule instanceof JsonTRule.Expression e) {
+            try {
+                JsonTValue result = e.expr().evaluate(ctx);
+                if (result instanceof JsonTValue.Bool b) {
+                    if (!b.value()) {
+                        events.add(DiagnosticEvent.warning(
+                                new DiagnosticEventKind.RuleViolation(
+                                        stringifyExpr(e.expr()),
+                                        "expression evaluated to false"))
+                                .atRow(rowIndex));
+                    }
+                } else {
+                    events.add(DiagnosticEvent.warning(
+                            new DiagnosticEventKind.RuleViolation(
+                                    stringifyExpr(e.expr()),
+                                    "non-boolean result: " + typeName(result)))
+                            .atRow(rowIndex));
+                }
+            } catch (JsonTError.Eval err) {
+                events.add(DiagnosticEvent.warning(
+                        new DiagnosticEventKind.RuleViolation(
+                                stringifyExpr(e.expr()),
+                                "evaluation error: " + err.getMessage()))
+                        .atRow(rowIndex));
+            }
+        } else if (rule instanceof JsonTRule.ConditionalRequirement cr) {
+            try {
+                JsonTValue condResult = cr.condition().evaluate(ctx);
+                if (condResult instanceof JsonTValue.Bool b && b.value()) {
+                    List<String> missing = new ArrayList<>();
+                    for (FieldPath fp : cr.requiredFields()) {
+                        String name = fp.dotJoined();
+                        JsonTValue val = ctx.lookup(name).orElse(null);
+                        if (val == null || val instanceof JsonTValue.Null
+                                || val instanceof JsonTValue.Unspecified) {
+                            missing.add(name);
+                        }
+                    }
+                    if (!missing.isEmpty()) {
+                        events.add(DiagnosticEvent.fatal(
+                                new DiagnosticEventKind.ConditionalRequirementViolation(
+                                        stringifyExpr(cr.condition()), missing))
+                                .atRow(rowIndex));
+                    }
+                }
+            } catch (JsonTError.Eval err) {
+                events.add(DiagnosticEvent.warning(
+                        new DiagnosticEventKind.RuleViolation(
+                                stringifyExpr(cr.condition()),
+                                "condition evaluation error: " + err.getMessage()))
+                        .atRow(rowIndex));
+            }
+        }
     }
 
     static String stringifyExpr(JsonTExpression expr) {
