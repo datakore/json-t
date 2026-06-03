@@ -66,6 +66,10 @@ public final class SchemaVisitor extends JsonTSchemaBaseVisitor<Object> {
             nb.catalog((JsonTCatalog) visitCatalog(catCtx));
         }
 
+        if (ctx.schema_id() != null) {
+            nb.dataSchema(ctx.schema_id().getText());
+        }
+
         try {
             return nb.build();
         } catch (BuildError e) {

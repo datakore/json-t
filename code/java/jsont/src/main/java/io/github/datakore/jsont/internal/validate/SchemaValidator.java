@@ -16,6 +16,7 @@ import io.github.datakore.jsont.model.SchemaOperation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Static structural validation for {@link JsonTSchema} instances.
@@ -48,8 +49,19 @@ public final class SchemaValidator {
      */
     public static void validateAll(Map<String, JsonTSchema> schemas)
             throws JsonTError.SchemaInvalid {
+        validateAll(schemas, Set.of());
+    }
+
+    /**
+     * Validates every schema in {@code schemas} against the full map, also
+     * accepting {@code knownEnumNames} as valid object-field type references.
+     *
+     * @throws JsonTError.SchemaInvalid if any schema fails validation
+     */
+    public static void validateAll(Map<String, JsonTSchema> schemas, Set<String> knownEnumNames)
+            throws JsonTError.SchemaInvalid {
         for (JsonTSchema schema : schemas.values()) {
-            validate(schema, schemas);
+            validate(schema, schemas, knownEnumNames);
         }
     }
 
@@ -60,9 +72,19 @@ public final class SchemaValidator {
      */
     public static void validate(JsonTSchema schema, Map<String, JsonTSchema> schemas)
             throws JsonTError.SchemaInvalid {
+        validate(schema, schemas, Set.of());
+    }
+
+    /**
+     * Validates a single schema against the provided map and known enum names.
+     *
+     * @throws JsonTError.SchemaInvalid if the schema fails validation
+     */
+    public static void validate(JsonTSchema schema, Map<String, JsonTSchema> schemas,
+                                Set<String> knownEnumNames) throws JsonTError.SchemaInvalid {
         try {
             if (schema.kind() == SchemaKind.STRAIGHT) {
-                validateStraight(schema, schemas);
+                validateStraight(schema, schemas, knownEnumNames);
             } else {
                 validateDerived(schema, schemas);
             }
@@ -79,11 +101,17 @@ public final class SchemaValidator {
 
     private static void validateStraight(JsonTSchema schema, Map<String, JsonTSchema> schemas)
             throws JsonTError.SchemaInvalid {
-        // 1. Object field references must exist
+        validateStraight(schema, schemas, Set.of());
+    }
+
+    private static void validateStraight(JsonTSchema schema, Map<String, JsonTSchema> schemas,
+                                          Set<String> knownEnumNames)
+            throws JsonTError.SchemaInvalid {
+        // 1. Object field references must resolve to either a known schema or a known enum type.
         for (JsonTField field : schema.fields()) {
             if (field.kind().isObject()) {
                 String ref = field.objectRef();
-                if (!schemas.containsKey(ref)) {
+                if (!schemas.containsKey(ref) && !knownEnumNames.contains(ref)) {
                     throw new JsonTError.SchemaInvalid(
                             "Field '" + field.name() + "' references unknown schema: " + ref);
                 }

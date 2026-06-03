@@ -3,10 +3,12 @@ package io.github.datakore.jsont.builder;
 import io.github.datakore.jsont.error.JsonTError;
 import io.github.datakore.jsont.internal.validate.SchemaValidator;
 import io.github.datakore.jsont.model.JsonTCatalog;
+import io.github.datakore.jsont.model.JsonTEnum;
 import io.github.datakore.jsont.model.JsonTNamespace;
 import io.github.datakore.jsont.model.JsonTSchema;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -60,13 +62,18 @@ public final class SchemaRegistry implements SchemaResolver {
     public static SchemaRegistry fromNamespace(JsonTNamespace ns) {
         if (ns == null) throw new IllegalArgumentException("namespace must not be null");
         Map<String, JsonTSchema> map = new LinkedHashMap<>();
+        Set<String> enumNames = new LinkedHashSet<>();
         for (JsonTCatalog catalog : ns.catalogs()) {
             for (JsonTSchema schema : catalog.schemas()) {
                 map.put(schema.name(), schema);
             }
+            for (JsonTEnum enumDef : catalog.enums()) {
+                enumNames.add(enumDef.name());
+            }
         }
         // Validate every schema now that the full registry is populated.
-        SchemaValidator.validateAll(map);
+        // Enum names are passed so object-field refs to enum types are accepted.
+        SchemaValidator.validateAll(map, enumNames);
         return new SchemaRegistry(map);
     }
 

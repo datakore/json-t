@@ -195,10 +195,15 @@ impl SchemaRegistry {
                 registry.register(schema.clone());
             }
         }
+        // Collect enum names so object-field refs to enum types pass validation.
+        let known_enum_names: std::collections::HashSet<String> = ns.catalogs
+            .iter()
+            .flat_map(|c| c.enums.iter().map(|e| e.name.clone()))
+            .collect();
         // Validate every schema now that the full registry is populated.
         for catalog in &ns.catalogs {
             for schema in &catalog.schemas {
-                schema.validate_schema(&registry)?;
+                schema.validate_schema_with_enums(&registry, &known_enum_names)?;
             }
         }
         // Resolve all schemas: compute pre-computed execution descriptors once.

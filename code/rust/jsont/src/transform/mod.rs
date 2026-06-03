@@ -659,6 +659,15 @@ impl JsonTSchema {
 
 impl JsonTSchema {
     pub fn validate_schema(&self, registry: &SchemaRegistry) -> Result<(), JsonTError> {
+        self.validate_schema_with_enums(registry, &std::collections::HashSet::new())
+    }
+
+    /// Validate, also accepting enum names as valid object-field type references.
+    pub fn validate_schema_with_enums(
+        &self,
+        registry: &SchemaRegistry,
+        known_enum_names: &std::collections::HashSet<String>,
+    ) -> Result<(), JsonTError> {
         match &self.kind {
             SchemaKind::Straight { fields } => {
                 let own_field_names: Vec<String> =
@@ -666,7 +675,9 @@ impl JsonTSchema {
 
                 for field in fields {
                     if let JsonTFieldKind::Object { schema_ref, .. } = &field.kind {
-                        if registry.get(schema_ref).is_none() {
+                        if registry.get(schema_ref).is_none()
+                            && !known_enum_names.contains(schema_ref)
+                        {
                             return Err(TransformError::UnknownSchema(format!(
                                 "field '{}' references unknown schema '{}'",
                                 field.name, schema_ref

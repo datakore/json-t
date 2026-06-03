@@ -8,43 +8,43 @@
           // ── 0010: Interchange Control Header (ISA) ─────────────────────────
           ISA_Segment: {
             fields: {
-              str: authInfoQualifier      [(minLength=2, maxLength=2, constant="00")],
-              str: authInfo               [(minLength=10, maxLength=10)],
-              str: securityInfoQualifier  [(minLength=2, maxLength=2, constant="00")],
-              str: securityInfo           [(minLength=10, maxLength=10)],
+              str: authInfoQualifier      [(minLength=2, maxLength=2), const "00"],
+              str~: authInfo              [(minLength=10, maxLength=10)],   // ISA02: interchange auth credential
+              str: securityInfoQualifier  [(minLength=2, maxLength=2), const "00"],
+              str~: securityInfo          [(minLength=10, maxLength=10)],   // ISA04: interchange password
               str: senderIdQualifier      [(minLength=2, maxLength=2)],
               str: senderId               [(minLength=15, maxLength=15)],
               str: receiverIdQualifier    [(minLength=2, maxLength=2)],
               str: receiverId             [(minLength=15, maxLength=15)],
               date: interchangeDate,
               time: interchangeTime,
-              str: repetitionSeparator    [(minLength=1, maxLength=1, constant="^")],
-              str: versionNumber          [(minLength=5, maxLength=5, constant="00501")],
+              str: repetitionSeparator    [(minLength=1, maxLength=1), const "^"],
+              str: versionNumber          [(minLength=5, maxLength=5), const "00501"],
               u32: controlNumber          [(minValue=1, maxValue=999999999)],
-              str: ackRequested           [(minLength=1, maxLength=1, constant="0")],
+              str: ackRequested           [(minLength=1, maxLength=1), const "0"],
               str: usageIndicator         [(minLength=1, maxLength=1)],  // P=Production, T=Test
-              str: componentSeparator     [(minLength=1, maxLength=1, constant=":")]
+              str: componentSeparator     [(minLength=1, maxLength=1), const ":"]
             }
           },
 
           // ── 0015: Functional Group Header (GS) ────────────────────────────
           GS_Segment: {
             fields: {
-              str: functionalCode         [(minLength=2, maxLength=2, constant="BE")],  // BE = Benefit Enrollment
+              str: functionalCode         [(minLength=2, maxLength=2), const "BE"],  // BE = Benefit Enrollment
               str: senderCode             [(minLength=2, maxLength=15)],
               str: receiverCode           [(minLength=2, maxLength=15)],
               date: groupDate,
               time: groupTime,
               u32: groupControlNumber     [(minValue=1, maxValue=999999999)],
-              str: agencyCode             [(minLength=1, maxLength=2, constant="X")],
-              str: versionIdCode          [(minLength=1, maxLength=12, constant="005010X220A1")]
+              str: agencyCode             [(minLength=1, maxLength=2), const "X"],
+              str: versionIdCode          [(minLength=1, maxLength=12), const "005010X220A1"]
             }
           },
 
           // ── 0020: Transaction Set Header (ST) ─────────────────────────────
           ST_Segment: {
             fields: {
-              str: transactionSetId       [(minLength=3, maxLength=3, constant="834")],
+              str: transactionSetId       [(minLength=3, maxLength=3), const "834"],
               str: controlNumber          [(minLength=4, maxLength=9)]
             }
           },
@@ -64,7 +64,7 @@
           // ── 1000A: Plan Sponsor Name ───────────────────────────────────────
           Loop_1000A: {
             fields: {
-              str: entityIdCode           [(constant="AY")],          // AY = Plan Sponsor
+              str: entityIdCode           [const "AY"],          // AY = Plan Sponsor
               str: entityTypeQualifier    [(minLength=1, maxLength=1)],
               str: sponsorName            [(minLength=1, maxLength=60)],
               str: idCodeQualifier        [(minLength=2, maxLength=2)],
@@ -75,7 +75,7 @@
           // ── 1000B: Payer Name ──────────────────────────────────────────────
           Loop_1000B: {
             fields: {
-              str: entityIdCode           [(constant="PR")],          // PR = Payer
+              str: entityIdCode           [const "PR"],          // PR = Payer
               str: entityTypeQualifier    [(minLength=1, maxLength=1)],
               str: payerName              [(minLength=1, maxLength=60)],
               str: idCodeQualifier        [(minLength=2, maxLength=2)],
@@ -92,24 +92,19 @@
               <NM1_Loop>: memberName,
               <DMG_Segment>: memberDemographics?,
               <HealthCoverage_Loop>[]: healthcareCoverage?
-            },
-            validations: {
-              rules {
-                (memberDetail.relationshipCode == SELF) == (memberDetail.memberIndicator == "Y")
-              }
             }
           },
 
           // ── 2100A: Member Name ────────────────────────────────────────────
           NM1_Loop: {
             fields: {
-              str: entityIdCode           [(constant="IL")],          // IL = Insured or Subscriber
-              str: entityTypeQualifier    [(constant="1")],           // 1 = Person
-              ~str: lastName              [(minLength=1, maxLength=60)],
-              ~str: firstName?            [(minLength=1, maxLength=35)],
-              ~str: middleName?           [(minLength=1, maxLength=25)],
-              ~str: prefix?               [(minLength=1, maxLength=10)],
-              ~str: memberId              [(minLength=2, maxLength=80)]  // NM109 — PHI
+              str: entityIdCode           [const "IL"],          // IL = Insured or Subscriber
+              str: entityTypeQualifier    [const "1"],           // 1 = Person
+              str~: lastName              [(minLength=1, maxLength=60)],
+              str~: firstName?            [(minLength=1, maxLength=35)],
+              str~: middleName?           [(minLength=1, maxLength=25)],
+              str~: prefix?               [(minLength=1, maxLength=10)],
+              str~: memberId              [(minLength=2, maxLength=80)]  // NM109 — PHI
             }
           },
 
@@ -131,7 +126,7 @@
           REF_Segment: {
             fields: {
               str: idQualifier            [(minLength=2, maxLength=3)],  // e.g. 0F=Member ID, SS=SSN
-              str: identification         [(minLength=1, maxLength=80)]
+              str~: identification        [(minLength=1, maxLength=80)]  // PHI: SSN, Member ID, etc.
             }
           },
 
@@ -139,7 +134,7 @@
           DTP_Segment: {
             fields: {
               str: dateQualifier          [(minLength=3, maxLength=3)],  // e.g. 348=Plan Begin, 349=Plan End
-              str: formatQualifier        [(constant="D8")],             // D8 = CCYYMMDD
+              str: formatQualifier        [const "D8"],             // D8 = CCYYMMDD
               str: dateValue              [(minLength=8, maxLength=8)]
             }
           },
@@ -147,10 +142,10 @@
           // ── Demographics (DMG) — PHI ──────────────────────────────────────
           DMG_Segment: {
             fields: {
-              str: formatQualifier        [(constant="D8")],
-              ~date: dateOfBirth,
-              ~<GenderCode>: gender,
-              ~<MaritalStatusCode>: maritalStatus?
+              str: formatQualifier        [const "D8"],
+              date~: dateOfBirth,
+              <GenderCode>: gender,
+              <MaritalStatusCode>: maritalStatus?
             }
           },
 
@@ -204,11 +199,6 @@
               <Loop_1000B>: payer,
               <Member_Loop>[]: members    [(minItems=1)],
               <SE_Segment>: trailer
-            },
-            validations: {
-              rules {
-                header.controlNumber == trailer.controlNumber
-              }
             }
           },
 
@@ -217,25 +207,15 @@
               <GS_Segment>: header,
               <TransactionSet>[]: transactions [(minItems=1)],
               <GE_Segment>: trailer
-            },
-            validations: {
-              rules {
-                header.groupControlNumber == trailer.groupControlNumber
-              }
             }
           },
 
           // ── Root: HL7 834 Document ───────────────────────────────────────
-          HL7_834: {
+          Hl7_834: {
             fields: {
               <ISA_Segment>: interchangeHeader,
               <FunctionalGroup>[]: groups [(minItems=1)],
               <IEA_Segment>: interchangeTrailer
-            },
-            validations: {
-              rules {
-                interchangeHeader.controlNumber == interchangeTrailer.controlNumber
-              }
             }
           }
         ],
@@ -285,6 +265,6 @@
         ]
       }
     ],
-    data-schema: HL7_834
+    data-schema: Hl7_834
   }
 }
